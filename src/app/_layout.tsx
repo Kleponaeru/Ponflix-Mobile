@@ -4,14 +4,15 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { useFonts } from '@expo-google-fonts/inter/useFonts';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-import AppTabs from '@/navigation/app-tabs';
+import { PonflixTheme } from '@/constants/theme';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -25,5 +26,13 @@ export default function TabLayout() {
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
-  return <AppTabs />;
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: PonflixTheme.colors.background } }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="anime/[slug]" />
+      <Stack.Screen name="anime/[slug]/episode/[episodeSlug]" />
+      <Stack.Screen name="comics/[id]" />
+      <Stack.Screen name="comics/[id]/chapter/[chapterId]" />
+    </Stack>
+  );
 }

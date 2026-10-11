@@ -43,14 +43,36 @@ Example structure:
 src/
   app/
     _layout.tsx
-    index.tsx
-    explore.tsx
+    (tabs)/
+      _layout.tsx
+      index.tsx
+      search.tsx
+      anime.tsx
+      comics.tsx
+    anime/
+      [slug].tsx
+      [slug]/
+        episode/
+          [episodeSlug].tsx
+    comics/
+      [id].tsx
+      [id]/
+        chapter/
+          [chapterId].tsx
   features/
     anime/
       api/
       components/
       screens/
       types/
+    comics/
+      api/
+      components/
+      screens/
+      types/
+      utils/
+    reader/
+      screens/
   navigation/
   constants/
   components/

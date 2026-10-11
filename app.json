@@ -32,7 +32,8 @@
           "image": "./assets/branding/ponflix-logo.png",
           "imageWidth": 180
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

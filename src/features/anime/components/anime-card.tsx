@@ -7,16 +7,17 @@ import { PonflixTheme } from '@/constants/theme';
 type AnimeCardProps = {
   anime: AnimeTitle;
   rank?: number;
+  width?: number;
   onPress: (anime: AnimeTitle) => void;
 };
 
-export function AnimeCard({ anime, rank, onPress }: AnimeCardProps) {
+export function AnimeCard({ anime, rank, width = 148, onPress }: AnimeCardProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Search Ponflix for ${anime.title}`}
       onPress={() => onPress(anime)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed]}>
       <View style={styles.poster}>
         {anime.thumbnail ? (
           <Image
@@ -51,7 +52,7 @@ export function AnimeCard({ anime, rank, onPress }: AnimeCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { width: 148 },
+  card: {},
   pressed: { opacity: 0.82 },
   poster: { aspectRatio: 2 / 3, borderRadius: 12, overflow: 'hidden', backgroundColor: '#17181C', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,6,8,0.18)' },

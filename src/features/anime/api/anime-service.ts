@@ -1,4 +1,4 @@
-import type { AnimeTitle } from '@/features/anime/types/anime';
+import type { AnimeDetails, AnimeEpisode, AnimePlayback, AnimeTitle } from '@/features/anime/types/anime';
 
 const API_BASE_URL = 'https://ponflix-api.vercel.app';
 const CACHE_TTL: Record<string, number> = {
@@ -41,3 +41,26 @@ export async function searchAnime(query: string, signal?: AbortSignal): Promise<
   if (!search) return fetchTrendingAnime(signal);
   return fetchFeed(`/api/search?q=${search}`, signal);
 }
+
+async function fetchAnimeData<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) throw new Error(`Anime request failed (${response.status}).`);
+
+  const payload: { success?: boolean; message?: string; data?: T } = await response.json();
+  if (!payload.success || payload.data == null) {
+    throw new Error(payload.message || 'Anime data is unavailable right now.');
+  }
+  return payload.data;
+}
+
+export const fetchAnimeDetails = (slug: string, signal?: AbortSignal) =>
+  fetchAnimeData<AnimeDetails>(`/api/anime/${encodeURIComponent(slug)}`, signal);
+
+export const fetchAnimeEpisodes = (slug: string, signal?: AbortSignal) =>
+  fetchAnimeData<AnimeEpisode[]>(`/api/anime/${encodeURIComponent(slug)}/episodes`, signal);
+
+export const fetchEpisodePlayback = (episodeSlug: string, signal?: AbortSignal) =>
+  fetchAnimeData<AnimePlayback>(`/api/episode/${encodeURIComponent(episodeSlug)}`, signal);
