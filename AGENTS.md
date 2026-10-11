@@ -29,6 +29,40 @@ Run lint and typecheck before declaring any task done.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
 
+## Project Structure
+
+- Always organize new app code into clear folders by responsibility; do not put feature logic, data, or reusable UI directly in route files.
+- Keep `src/app/` focused on Expo Router routes and navigator layouts. Route files should compose feature components and connect route params to feature behavior.
+- Put feature-specific screens, components, hooks, data, API calls, and types together under `src/features/<feature-name>/` so each feature stays easy to find and change.
+- Put genuinely shared, feature-independent code in `src/components/ui/`, `src/hooks/`, `src/services/`, `src/constants/`, `src/types/`, and `src/utils/` as needed. Keep static images and fonts in the existing root `assets/` folder.
+- Add folders as the app needs them; do not create empty folders or split small, tightly related code into unnecessary files. Prefer reusing or extending an existing module over duplicating it.
+
+Example structure:
+
+```text
+src/
+  app/
+    _layout.tsx
+    index.tsx
+    explore.tsx
+  features/
+    anime/
+      api/
+      components/
+      screens/
+      types/
+  navigation/
+  constants/
+  components/
+    ui/
+  hooks/
+  services/
+  types/
+  utils/
+assets/
+  branding/
+```
+
 ## Building with EAS
 
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
