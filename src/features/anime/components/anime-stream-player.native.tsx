@@ -20,7 +20,9 @@ export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
         allowsFullscreenVideo
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction
-        setSupportMultipleWindows={false}
+        javaScriptCanOpenWindowsAutomatically={false}
+        setSupportMultipleWindows
+        onOpenWindow={() => undefined}
         onShouldStartLoadWithRequest={(request) => request.url.startsWith('https://') || request.url === 'about:blank'}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
