@@ -1,44 +1,55 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Local agent configuration
+/.codex/
 
-# dependencies
+# Dependencies
 node_modules/
 
-# Expo
-.codex
+# Expo-generated files
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Local build artifacts
+/release/
+/desktop/
+*.apk
+*.aab
+*.exe
+*.blockmap
+
+# Generated native projects (Expo CNG)
+/ios/
+/android/
 .kotlin/
-*.orig.*
+
+# Metro cache
+.metro-health-check*
+
+# Signing credentials and certificates
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
-.metro-health-check*
+# Local environment files
+.env
+.env*.local
 
-# debug
+# Logs and debug output
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
+# TypeScript cache
 *.tsbuildinfo
 
-example
+# Operating system files
+.DS_Store
+Thumbs.db
 
-# generated native folders
-/ios
-/android
+# Repository template example directory
+/example/

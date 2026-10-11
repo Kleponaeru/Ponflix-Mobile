@@ -1,0 +1,51 @@
+﻿PONFLIX MOBILE — ANDROID APK
+============================
+
+Project folder
+--------------
+cd C:\Code\PonflixMobile
+
+Run the app while developing
+----------------------------
+Expo Go on Android:  npx expo start
+Web browser preview: npx expo start --web
+
+Keep the terminal running. For Expo Go, scan the QR code with Expo Go.
+
+Check changes before building
+-----------------------------
+npx expo lint
+npx tsc --noEmit
+
+Sign in to Expo EAS (first time, or when whoami says Not logged in)
+-------------------------------------------------------------------
+npx eas-cli@latest login
+npx eas-cli@latest whoami
+
+Use the same Expo account that owns the PonflixMobile EAS project. Do not put
+passwords or access tokens in this file.
+
+Build a tablet-installable APK
+------------------------------
+npx eas-cli@latest build --platform android --profile preview
+
+Wait for EAS to finish. Open the APK link on the Android tablet, download it,
+then open the downloaded APK and tap Install. The build also appears under
+PonflixMobile > Builds at https://expo.dev/accounts/kleponaeru/projects/PonflixMobile.
+
+Installing a later update
+-------------------------
+Run the same APK build command again after making changes. EAS automatically
+increments the Android build version. Install the new APK over the existing app;
+do not uninstall first, or the app's local bookmarks and history may be erased.
+The update must use the same EAS project and Android signing key.
+
+Automatic APK builds from GitHub
+--------------------------------
+The Expo project is connected to the Ponflix-Mobile GitHub repository. The
+workflow in .eas\workflows\android-apk.yml starts a new EAS APK build whenever
+code is pushed to the main branch. You can see its status and download the APK
+from PonflixMobile > Builds in the Expo dashboard.
+
+This creates a new APK; it does not install the APK on the tablet automatically.
+Download and install each APK over the current app to update it.
