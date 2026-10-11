@@ -1,11 +1,11 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimeRail } from '@/features/anime/components/anime-rail';
-import { fetchLatestAnime, fetchSpotlightAnime, fetchTrendingAnime } from '@/features/anime/api/anime-service';
+import { clearAnimeFeedCache, fetchLatestAnime, fetchSpotlightAnime, fetchTrendingAnime } from '@/features/anime/api/anime-service';
 import type { AnimeTitle } from '@/features/anime/types/anime';
 import { PonflixTheme } from '@/constants/theme';
 
@@ -16,6 +16,7 @@ export default function HomeScreen() {
   const [trending, setTrending] = useState<AnimeTitle[]>([]);
   const [latest, setLatest] = useState<AnimeTitle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [heroIndex, setHeroIndex] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
@@ -42,7 +43,10 @@ export default function HomeScreen() {
         setError('Ponflix could not load anime. Check your connection and try again.');
       }
     }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     });
 
     return () => controller.abort();
@@ -50,6 +54,14 @@ export default function HomeScreen() {
 
   const openAnime = (anime: AnimeTitle) => {
     router.push({ pathname: '/explore', params: { query: anime.title } });
+  };
+
+  const refreshHome = () => {
+    if (refreshing) return;
+    setError('');
+    setRefreshing(true);
+    clearAnimeFeedCache();
+    setReloadKey((key) => key + 1);
   };
 
   return (
@@ -62,7 +74,20 @@ export default function HomeScreen() {
             <Text style={styles.searchGlyph}>⌕</Text>
           </Pressable>
         </View>
-        <ScrollView ref={latestRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView
+          ref={latestRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={(
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refreshHome}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+              progressBackgroundColor={colors.surface}
+            />
+          )}
+        >
           <View style={styles.hero}>
             {featured?.thumbnail ? (
               <Image source={{ uri: featured.thumbnail }} contentFit="cover" cachePolicy="memory-disk" transition={260} style={StyleSheet.absoluteFill} />
@@ -155,7 +180,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
   header: { height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
-  logo: { width: 134, height: 44 },
+  logo: { width: 108, height: 36 },
   searchButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.06)' },
   searchGlyph: { color: '#FFF', fontSize: 29, lineHeight: 34, marginTop: -5 },
   content: { paddingBottom: 28 },

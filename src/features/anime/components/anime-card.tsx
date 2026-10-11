@@ -39,9 +39,11 @@ export function AnimeCard({ anime, rank, onPress }: AnimeCardProps) {
         </View>
       </View>
       <View style={styles.metadata}>
-        <Text numberOfLines={1} style={styles.episode}>
-          {anime.currentEpisode ? `Episode ${anime.currentEpisode}` : anime.timeAgo || 'Explore series'}
-        </Text>
+        {anime.currentEpisode || anime.timeAgo ? (
+          <Text numberOfLines={1} style={styles.episode}>
+            {anime.currentEpisode ? `Episode ${anime.currentEpisode}` : anime.timeAgo}
+          </Text>
+        ) : <View style={styles.metadataSpacer} />}
         {anime.totalEpisodes ? <Text style={styles.episodeCount}>{anime.totalEpisodes} eps</Text> : null}
       </View>
     </Pressable>
@@ -62,5 +64,6 @@ const styles = StyleSheet.create({
   title: { color: '#FFF', fontFamily: PonflixTheme.fonts.bold, fontSize: 13, lineHeight: 17 },
   metadata: { flexDirection: 'row', justifyContent: 'space-between', gap: 5, paddingHorizontal: 1, paddingTop: 7 },
   episode: { flex: 1, color: 'rgba(255,255,255,0.52)', fontSize: 10 },
+  metadataSpacer: { flex: 1 },
   episodeCount: { color: 'rgba(255,255,255,0.42)', fontFamily: PonflixTheme.fonts.medium, fontSize: 10 },
 });

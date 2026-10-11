@@ -9,6 +9,10 @@ const CACHE_TTL: Record<string, number> = {
 
 const cache = new Map<string, { data: AnimeTitle[]; expiresAt: number }>();
 
+export function clearAnimeFeedCache() {
+  cache.clear();
+}
+
 async function fetchFeed(path: string, signal?: AbortSignal): Promise<AnimeTitle[]> {
   const ttl = CACHE_TTL[path];
   const cached = ttl ? cache.get(path) : undefined;
