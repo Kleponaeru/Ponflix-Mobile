@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { fetchComicChapterCount } from '@/features/comics/api/comic-service';
 import type { ComicListItem } from '@/features/comics/types/comic';
 import { PonflixTheme } from '@/constants/theme';
 
@@ -11,8 +13,17 @@ type ComicCardProps = {
 };
 
 export function ComicCard({ comic, width, onPress }: ComicCardProps) {
-  const chapterNumber = comic.latestChapter?.title.match(/(?:chapter|chap\.?|ch\.?|ep\.?)[\s#-]*([\d]+(?:\.[\d]+)?)/i)?.[1];
-  const chapterBadge = comic.latestChapter ? (chapterNumber ? `CH. ${chapterNumber}` : 'LATEST') : undefined;
+  const [chapterCount, setChapterCount] = useState<number>();
+
+  useEffect(() => {
+    let active = true;
+    fetchComicChapterCount(comic.id)
+      .then((count) => { if (active) setChapterCount(count); })
+      .catch(() => { if (active) setChapterCount(undefined); });
+    return () => { active = false; };
+  }, [comic.id]);
+
+  const chapterBadge = chapterCount ? `${chapterCount} CH` : undefined;
 
   return (
     <Pressable
@@ -34,7 +45,6 @@ export function ComicCard({ comic, width, onPress }: ComicCardProps) {
         <View style={styles.shade} />
         <View style={styles.typeBadge}><Text numberOfLines={1} style={styles.typeText}>{comic.type.toUpperCase()}</Text></View>
         {chapterBadge ? <View style={styles.chapterBadge}><Text numberOfLines={1} style={styles.chapterBadgeText}>{chapterBadge}</Text></View> : null}
-        {comic.isColored ? <View style={[styles.colorBadge, chapterBadge && styles.colorBadgeBelowChapter]}><Text style={styles.colorText}>COLOR</Text></View> : null}
       </View>
       <Text numberOfLines={2} style={styles.title}>{comic.title}</Text>
       {comic.latestChapter ? <Text numberOfLines={1} style={styles.chapter}>{comic.latestChapter.title}</Text> : null}
@@ -51,9 +61,6 @@ const styles = StyleSheet.create({
   typeText: { color: '#FFF', fontFamily: PonflixTheme.fonts.bold, fontSize: 8, letterSpacing: 0.6 },
   chapterBadge: { position: 'absolute', top: 8, right: 8, maxWidth: '68%', paddingHorizontal: 7, paddingVertical: 5, borderRadius: 5, backgroundColor: PonflixTheme.colors.accent },
   chapterBadgeText: { color: '#FFF', fontFamily: PonflixTheme.fonts.extraBold, fontSize: 8, letterSpacing: 0.5 },
-  colorBadge: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 5, borderRadius: 5, backgroundColor: 'rgba(8,9,11,0.78)' },
-  colorBadgeBelowChapter: { top: 33 },
-  colorText: { color: '#FFF', fontFamily: PonflixTheme.fonts.bold, fontSize: 7, letterSpacing: 0.5 },
   title: { color: PonflixTheme.colors.text, fontFamily: PonflixTheme.fonts.semibold, fontSize: 12, lineHeight: 16, marginTop: 8 },
   chapter: { color: PonflixTheme.colors.muted, fontFamily: PonflixTheme.fonts.regular, fontSize: 10, marginTop: 4 },
 });

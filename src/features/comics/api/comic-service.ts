@@ -2,6 +2,25 @@ import type { ComicCategory, ComicChapter, ComicDetails, ComicListItem, ComicPag
 import { cleanComicTitle, extractComicSlug } from '@/features/comics/utils/comic-slug';
 
 const API_URL = 'https://ponflix-comics-api.vercel.app/api.php';
+const CHAPTER_COUNT_CONCURRENCY = 3;
+const chapterCountCache = new Map<string, Promise<number>>();
+let activeChapterCountRequests = 0;
+const chapterCountQueue: (() => void)[] = [];
+
+async function withChapterCountSlot<T>(request: () => Promise<T>): Promise<T> {
+  if (activeChapterCountRequests >= CHAPTER_COUNT_CONCURRENCY) {
+    await new Promise<void>((resolve) => chapterCountQueue.push(resolve));
+  } else {
+    activeChapterCountRequests += 1;
+  }
+  try {
+    return await request();
+  } finally {
+    const next = chapterCountQueue.shift();
+    if (next) next();
+    else activeChapterCountRequests -= 1;
+  }
+}
 
 async function fetchPayload<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, { headers: { Accept: 'application/json' }, signal });
@@ -87,6 +106,19 @@ export async function fetchComicDetails(id: string, signal?: AbortSignal): Promi
     firstChapter,
     latestChapter,
   };
+}
+
+export function fetchComicChapterCount(id: string): Promise<number> {
+  const cached = chapterCountCache.get(id);
+  if (cached) return cached;
+
+  const request = withChapterCountSlot(async () => {
+    const data = await fetchPayload<Record<string, unknown>>(`${API_URL}?komik=${encodeURIComponent(id)}`);
+    return Array.isArray(data.daftar_chapter) ? data.daftar_chapter.length : 0;
+  });
+  chapterCountCache.set(id, request);
+  request.catch(() => chapterCountCache.delete(id));
+  return request;
 }
 
 export async function fetchComicReader(chapterSlug: string, signal?: AbortSignal): Promise<ComicReaderData> {

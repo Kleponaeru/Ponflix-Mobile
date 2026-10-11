@@ -8,7 +8,8 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={colors.background}
-      indicatorColor="#261014"
+      indicatorColor="rgba(229,9,20,0.18)"
+      rippleColor="rgba(229,9,20,0.28)"
       iconColor={{ default: colors.muted, selected: colors.accent }}
       labelStyle={{
         default: { color: colors.muted, fontFamily: PonflixTheme.fonts.medium },
@@ -34,6 +35,10 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Comics</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="library">
+        <NativeTabs.Trigger.Icon md={{ default: 'bookmark_border', selected: 'bookmark' }} sf={{ default: 'bookmark', selected: 'bookmark.fill' }} />
+        <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

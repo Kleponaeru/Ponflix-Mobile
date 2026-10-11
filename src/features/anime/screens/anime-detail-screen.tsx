@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, Styl
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { useLibrary } from '@/features/library/context/library-context';
 import { fetchAnimeDetails, fetchAnimeEpisodes } from '@/features/anime/api/anime-service';
 import type { AnimeDetails, AnimeEpisode } from '@/features/anime/types/anime';
 
@@ -19,6 +20,7 @@ export default function AnimeDetailScreen() {
 }
 
 function AnimeDetailContent({ slug }: { slug?: string }) {
+  const library = useLibrary();
   const [anime, setAnime] = useState<AnimeDetails | null>(null);
   const [episodes, setEpisodes] = useState<AnimeEpisode[]>([]);
   const [query, setQuery] = useState('');
@@ -64,6 +66,16 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
 
   const play = (episode: AnimeEpisode) => {
     if (!slug) return;
+    if (anime) {
+      library.recordProgress({
+        type: 'anime',
+        id: slug,
+        title: anime.title,
+        imageUrl: anime.thumbnail,
+        subtitle: episode.title,
+        route: `/anime/${slug}/episode/${episode.slug}`,
+      });
+    }
     router.push({ pathname: '/anime/[slug]/episode/[episodeSlug]', params: { slug, episodeSlug: episode.slug } });
   };
 
@@ -86,6 +98,7 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
 
   const firstEpisode = episodes[0];
   const latestEpisode = episodes[episodes.length - 1];
+  const isSaved = library.isBookmarked('anime', anime.slug);
   const listHeader = (
     <View>
       <View style={styles.hero}>
@@ -124,6 +137,16 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
                 <Text style={styles.latestText}>Latest episode</Text>
               </Pressable>
             ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSaved, disabled: !library.ready }}
+              accessibilityLabel={isSaved ? 'Remove anime from My List' : 'Save anime to My List'}
+              disabled={!library.ready}
+              onPress={() => library.toggleBookmark({ type: 'anime', id: anime.slug, title: anime.title, imageUrl: anime.thumbnail, route: `/anime/${anime.slug}` })}
+              style={styles.bookmarkButton}>
+              <SymbolView name={{ ios: isSaved ? 'bookmark.fill' : 'bookmark', android: isSaved ? 'bookmark' : 'bookmark_border', web: isSaved ? 'bookmark' : 'bookmark_border' }} size={16} tintColor="#FFF" />
+              <Text style={styles.latestText}>{isSaved ? 'Saved' : 'My List'}</Text>
+            </Pressable>
           </View>
         </SafeAreaView>
       </View>
@@ -201,6 +224,7 @@ const styles = StyleSheet.create({
   playText: { color: '#111216', fontFamily: fonts.bold, fontSize: 13 },
   latestButton: { minHeight: 46, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.13)', paddingHorizontal: 15, justifyContent: 'center' },
   latestText: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 12 },
+  bookmarkButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.13)', paddingHorizontal: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 26, marginBottom: 13 },
   sectionEyebrow: { color: colors.accent, fontFamily: fonts.bold, fontSize: 9, letterSpacing: 1.7, marginBottom: 5 },
   sectionTitle: { color: '#FFF', fontFamily: fonts.bold, fontSize: 21, letterSpacing: -0.3 },

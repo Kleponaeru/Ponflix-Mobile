@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { PonflixTheme } from '@/constants/theme';
+import { LibraryProvider } from '@/features/library/context/library-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,12 +28,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) return null;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: PonflixTheme.colors.background } }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="anime/[slug]" />
-      <Stack.Screen name="anime/[slug]/episode/[episodeSlug]" />
-      <Stack.Screen name="comics/[id]" />
-      <Stack.Screen name="comics/[id]/chapter/[chapterId]" />
-    </Stack>
+    <LibraryProvider>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: PonflixTheme.colors.background } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="anime/[slug]" />
+        <Stack.Screen name="anime/[slug]/episode/[episodeSlug]" />
+        <Stack.Screen name="comics/[id]" />
+        <Stack.Screen name="comics/[id]/chapter/[chapterId]" />
+      </Stack>
+    </LibraryProvider>
   );
 }

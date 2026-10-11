@@ -73,6 +73,10 @@ src/
       utils/
     reader/
       screens/
+    library/
+      context/
+      screens/
+      types/
   navigation/
   constants/
   components/

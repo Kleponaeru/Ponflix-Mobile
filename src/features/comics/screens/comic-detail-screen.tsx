@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, Styl
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicDetails } from '@/features/comics/api/comic-service';
 import type { ComicChapter, ComicDetails } from '@/features/comics/types/comic';
 
@@ -23,6 +24,7 @@ export default function ComicDetailScreen() {
 }
 
 function ComicDetailContent({ id }: { id?: string }) {
+  const library = useLibrary();
   const [comic, setComic] = useState<ComicDetails | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,16 @@ function ComicDetailContent({ id }: { id?: string }) {
 
   const openChapter = (chapter: ComicChapter) => {
     if (!id) return;
+    if (comic) {
+      library.recordProgress({
+        type: 'comic',
+        id,
+        title: comic.title,
+        imageUrl: comic.imageUrl,
+        subtitle: chapter.title,
+        route: `/comics/${id}/chapter/${chapter.slug}`,
+      });
+    }
     router.push({ pathname: '/comics/[id]/chapter/[chapterId]', params: { id, chapterId: chapter.slug } });
   };
 
@@ -83,6 +95,7 @@ function ComicDetailContent({ id }: { id?: string }) {
   const description = readableDescription(comic.description);
   const firstChapter = comic.firstChapter;
   const latestChapter = comic.latestChapter;
+  const isSaved = library.isBookmarked('comic', comic.id);
   const header = (
     <View>
       <View style={styles.hero}>
@@ -114,6 +127,16 @@ function ComicDetailContent({ id }: { id?: string }) {
           <View style={styles.actionRow}>
             {firstChapter ? <Pressable accessibilityRole="button" onPress={() => openChapter(firstChapter)} style={styles.primaryButton}><SymbolView name={{ ios: 'book.fill', android: 'menu_book', web: 'menu_book' }} size={17} tintColor="#111216" /><Text style={styles.primaryText}>Start reading</Text></Pressable> : null}
             {latestChapter && latestChapter.slug !== firstChapter?.slug ? <Pressable accessibilityRole="button" onPress={() => openChapter(latestChapter)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Latest chapter</Text></Pressable> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSaved, disabled: !library.ready }}
+              accessibilityLabel={isSaved ? 'Remove comic from My List' : 'Save comic to My List'}
+              disabled={!library.ready}
+              onPress={() => library.toggleBookmark({ type: 'comic', id: comic.id, title: comic.title, imageUrl: comic.imageUrl, route: `/comics/${comic.id}` })}
+              style={styles.bookmarkButton}>
+              <SymbolView name={{ ios: isSaved ? 'bookmark.fill' : 'bookmark', android: isSaved ? 'bookmark' : 'bookmark_border', web: isSaved ? 'bookmark' : 'bookmark_border' }} size={16} tintColor="#FFF" />
+              <Text style={styles.secondaryText}>{isSaved ? 'Saved' : 'My List'}</Text>
+            </Pressable>
           </View>
         </SafeAreaView>
       </View>
@@ -183,6 +206,7 @@ const styles = StyleSheet.create({
   genreText: { color: 'rgba(255,255,255,0.72)', fontFamily: fonts.medium, fontSize: 9 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginTop: 17 },
   secondaryButton: { minHeight: 45, justifyContent: 'center', borderRadius: 8, paddingHorizontal: 15, backgroundColor: 'rgba(255,255,255,0.14)' },
+  bookmarkButton: { minHeight: 45, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.14)' },
   secondaryText: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 11 },
   chapterHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 26, marginBottom: 13, paddingHorizontal: 20 },
   sectionEyebrow: { color: colors.accent, fontFamily: fonts.bold, fontSize: 9, letterSpacing: 1.6, marginBottom: 4 },

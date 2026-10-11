@@ -16,6 +16,7 @@ export default function AppTabs() {
           <TabTrigger name="search" href="/search" asChild><TabButton>Search</TabButton></TabTrigger>
           <TabTrigger name="anime" href="/anime" asChild><TabButton>Anime</TabButton></TabTrigger>
           <TabTrigger name="comics" href="/comics" asChild><TabButton>Comics</TabButton></TabTrigger>
+          <TabTrigger name="library" href="/library" asChild><TabButton>Library</TabButton></TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>

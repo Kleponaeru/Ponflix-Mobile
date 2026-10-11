@@ -6,6 +6,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, Styl
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicReader } from '@/features/comics/api/comic-service';
 import type { ComicReaderData } from '@/features/comics/types/comic';
 
@@ -40,6 +41,7 @@ export default function ComicReaderScreen() {
 }
 
 function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string }) {
+  const { recordProgress } = useLibrary();
   const [chapter, setChapter] = useState<ComicReaderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +59,18 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
     if (!chapterId) return;
     const controller = new AbortController();
     fetchComicReader(chapterId, controller.signal)
-      .then((result) => setChapter(result))
+      .then((result) => {
+        setChapter(result);
+        if (id) {
+          recordProgress({
+            type: 'comic',
+            id,
+            title: result.mangaTitle,
+            subtitle: result.title,
+            route: `/comics/${id}/chapter/${chapterId}`,
+          });
+        }
+      })
       .catch(() => { if (!controller.signal.aborted) setError(true); })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -66,7 +79,7 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
         }
       });
     return () => controller.abort();
-  }, [chapterId, reloadKey]);
+  }, [chapterId, id, recordProgress, reloadKey]);
 
   const navigateChapter = useCallback((nextChapter?: string) => {
     if (!id || !nextChapter) return;

@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sta
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { useLibrary } from '@/features/library/context/library-context';
 import { AnimeStreamPlayer } from '@/features/anime/components/anime-stream-player';
 import { fetchAnimeEpisodes, fetchEpisodePlayback } from '@/features/anime/api/anime-service';
 import type { AnimeEpisode, AnimePlayback, AnimeServer } from '@/features/anime/types/anime';
@@ -35,6 +36,7 @@ export default function AnimeWatchScreen() {
 }
 
 function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?: string }) {
+  const { recordProgress } = useLibrary();
   const [playback, setPlayback] = useState<AnimePlayback | null>(null);
   const [episodes, setEpisodes] = useState<AnimeEpisode[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
@@ -55,6 +57,14 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
         setPlayback(result);
         const initial = result.servers?.find((server) => serverMode(server) === 'sub')?.url || result.iframe || '';
         setSelectedServer(initial);
+        if (slug && episodeSlug) {
+          recordProgress({
+            type: 'anime',
+            id: slug,
+            subtitle: result.title,
+            route: `/anime/${slug}/episode/${episodeSlug}`,
+          });
+        }
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'The player could not be loaded.');
@@ -66,7 +76,7 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
         }
       });
     return () => controller.abort();
-  }, [episodeSlug, reloadKey]);
+  }, [episodeSlug, recordProgress, reloadKey, slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -99,6 +109,12 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
 
   const play = (episode: AnimeEpisode) => {
     if (!slug) return;
+    recordProgress({
+      type: 'anime',
+      id: slug,
+      subtitle: episode.title,
+      route: `/anime/${slug}/episode/${episode.slug}`,
+    });
     router.replace({ pathname: '/anime/[slug]/episode/[episodeSlug]', params: { slug, episodeSlug: episode.slug } });
   };
 
