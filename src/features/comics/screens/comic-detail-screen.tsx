@@ -4,7 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
@@ -26,6 +26,7 @@ export default function ComicDetailScreen() {
 
 function ComicDetailContent({ id }: { id?: string }) {
   const library = useLibrary();
+  const insets = useSafeAreaInsets();
   const [comic, setComic] = useState<ComicDetails | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -103,7 +104,7 @@ function ComicDetailContent({ id }: { id?: string }) {
         {comic.imageUrl ? <Image source={{ uri: comic.imageUrl }} contentFit="cover" cachePolicy="memory-disk" style={StyleSheet.absoluteFill} /> : null}
         <LinearGradient colors={['rgba(8,9,11,0.2)', 'rgba(8,9,11,0.58)', colors.background]} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
         <SafeAreaView edges={['top']} style={styles.heroContent}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={[styles.backButton, { top: insets.top + 8 }]}>
             <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={20} tintColor="#FFF" />
           </Pressable>
           <View style={styles.cover}>
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
   meta: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.medium, fontSize: 10 },
   rating: { color: '#A7F3D0', fontFamily: fonts.bold, fontSize: 10 },
   byline: { color: 'rgba(255,255,255,0.5)', fontFamily: fonts.medium, fontSize: 10, marginTop: 11 },
-  description: { color: 'rgba(255,255,255,0.68)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, marginTop: 13, maxWidth: 610 },
+  description: { alignSelf: 'stretch', flexShrink: 1, color: 'rgba(255,255,255,0.68)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, marginTop: 13, maxWidth: 610 },
   readMore: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 11, marginTop: 5 },
   genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13 },
   genrePill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(0,0,0,0.17)' },

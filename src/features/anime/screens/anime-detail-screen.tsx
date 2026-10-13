@@ -4,7 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
@@ -22,6 +22,7 @@ export default function AnimeDetailScreen() {
 
 function AnimeDetailContent({ slug }: { slug?: string }) {
   const library = useLibrary();
+  const insets = useSafeAreaInsets();
   const [anime, setAnime] = useState<AnimeDetails | null>(null);
   const [episodes, setEpisodes] = useState<AnimeEpisode[]>([]);
   const [query, setQuery] = useState('');
@@ -106,7 +107,7 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
         <Image source={{ uri: anime.thumbnail }} contentFit="cover" cachePolicy="memory-disk" style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['rgba(8,9,11,0.18)', 'rgba(8,9,11,0.55)', colors.background]} locations={[0, 0.46, 1]} style={StyleSheet.absoluteFill} />
         <SafeAreaView edges={['top']} style={styles.heroContent}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={[styles.backButton, { top: insets.top + 8 }]}>
             <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={20} tintColor="#FFF" />
           </Pressable>
           <View style={styles.posterWrap}>
@@ -219,8 +220,8 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9, marginTop: 11 },
   score: { color: '#A7F3D0', fontFamily: fonts.bold, fontSize: 11 },
   meta: { color: 'rgba(255,255,255,0.62)', fontFamily: fonts.medium, fontSize: 10 },
-  synopsis: { color: 'rgba(255,255,255,0.7)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, marginTop: 14, maxWidth: 600 },
-  readMoreHint: { color: 'rgba(255,255,255,0.4)', fontFamily: fonts.regular, fontSize: 10, marginTop: 4 },
+  synopsis: { alignSelf: 'stretch', flexShrink: 1, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, marginTop: 14, maxWidth: 600 },
+  readMoreHint: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 11, marginTop: 5 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 18 },
   playButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 8, backgroundColor: '#FFF', paddingHorizontal: 17 },
   playText: { color: '#111216', fontFamily: fonts.bold, fontSize: 13 },
