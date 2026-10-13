@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { Tabs, TabList, TabTrigger, TabSlot, type TabListProps, type TabTriggerSlotProps } from 'expo-router/ui';
+import type { Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PonflixTheme } from '@/constants/theme';
@@ -12,9 +13,10 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="index" href="/(tabs)/index" asChild><TabButton>Home</TabButton></TabTrigger>
+          <TabTrigger name="index" href="/" asChild><TabButton>Home</TabButton></TabTrigger>
           <TabTrigger name="search" href="/search" asChild><TabButton>Search</TabButton></TabTrigger>
           <TabTrigger name="anime" href="/anime" asChild><TabButton>Anime</TabButton></TabTrigger>
+          <TabTrigger name="movies" href={'/(tabs)/movies' as Href} asChild><TabButton>Movies</TabButton></TabTrigger>
           <TabTrigger name="comics" href="/comics" asChild><TabButton>Comics</TabButton></TabTrigger>
           <TabTrigger name="library" href="/library" asChild><TabButton>Library</TabButton></TabTrigger>
         </CustomTabList>

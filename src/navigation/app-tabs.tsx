@@ -30,6 +30,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Anime</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="movies">
+        <NativeTabs.Trigger.Icon md={{ default: 'local_movies', selected: 'local_movies' }} sf={{ default: 'film', selected: 'film.fill' }} />
+        <NativeTabs.Trigger.Label>Movies</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="comics">
         <NativeTabs.Trigger.Icon md={{ default: 'menu_book', selected: 'menu_book' }} sf={{ default: 'books.vertical', selected: 'books.vertical.fill' }} />
         <NativeTabs.Trigger.Label>Comics</NativeTabs.Trigger.Label>

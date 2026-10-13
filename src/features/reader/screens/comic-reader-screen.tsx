@@ -126,7 +126,7 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.topBar}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to comic details" onPress={() => router.replace({ pathname: '/comics/[id]', params: { id } })} style={styles.topButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to comic details" disabled={!id} onPress={() => { if (id) router.replace({ pathname: '/comics/[id]', params: { id } }); }} style={styles.topButton}>
             <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={19} tintColor="#FFF" />
           </Pressable>
           <View style={styles.topCopy}>
