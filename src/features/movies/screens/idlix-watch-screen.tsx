@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
+import { KeepScreenAwake } from '@/components/keep-screen-awake';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, fetchIdlixPlayback, IDLIX_BASE_URL, type IdlixDetails, type IdlixEpisode, type IdlixPlayback, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
 import { IdlixVideoPlayer } from '@/features/movies/components/idlix-video-player';
@@ -112,6 +113,7 @@ export default function IdlixWatchScreen() {
           refreshing={refreshing}
           onRefresh={refresh}
         >
+          {playback?.kind === 'embed' ? <KeepScreenAwake /> : null}
           {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={currentTitle} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
             <>
               <View style={styles.playerFrame}>

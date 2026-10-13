@@ -1,8 +1,10 @@
 import { useVideoPlayer, VideoView, type SubtitleTrack, type VideoTrack } from 'expo-video';
+import { useEvent } from 'expo';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { KeepScreenAwake } from '@/components/keep-screen-awake';
 import { PonflixTheme } from '@/constants/theme';
 import type { IdlixSubtitleSource } from '@/features/movies/api/idlix-service';
 
@@ -70,6 +72,7 @@ export function IdlixVideoPlayer({ uri, headers, title, subtitleSources = [] }: 
     videoPlayer.timeUpdateEventInterval = 0.25;
     videoPlayer.play();
   });
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
   const qualityTracks = Array.from(new Map(videoTracks.filter((track) => track.url && track.size.height > 0).map((track) => [track.size.height, track])).values())
     .sort((first, second) => second.size.height - first.size.height);
 
@@ -168,6 +171,7 @@ export function IdlixVideoPlayer({ uri, headers, title, subtitleSources = [] }: 
 
   return (
     <View style={styles.container}>
+      {isPlaying ? <KeepScreenAwake /> : null}
       <View style={styles.videoFrame}>
         <VideoView
           player={player}

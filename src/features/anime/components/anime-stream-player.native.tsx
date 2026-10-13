@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import { KeepScreenAwake } from '@/components/keep-screen-awake';
 import { PonflixTheme } from '@/constants/theme';
 import type { AnimeStreamPlayerProps } from '@/features/anime/components/anime-stream-player.types';
 
@@ -10,6 +11,7 @@ export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
 
   return (
     <View style={styles.container}>
+      <KeepScreenAwake />
       <WebView
         source={{ uri }}
         style={styles.webView}

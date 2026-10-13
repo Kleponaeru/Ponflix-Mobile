@@ -1,6 +1,7 @@
 import { useState, type ComponentType } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { KeepScreenAwake } from '@/components/keep-screen-awake';
 import { PonflixTheme } from '@/constants/theme';
 import type { AnimeStreamPlayerProps } from '@/features/anime/components/anime-stream-player.types';
 
@@ -20,6 +21,7 @@ export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
   const [loading, setLoading] = useState(true);
   return (
     <View style={styles.container}>
+      <KeepScreenAwake />
       <Iframe
         src={uri}
         title="Ponflix anime stream"
