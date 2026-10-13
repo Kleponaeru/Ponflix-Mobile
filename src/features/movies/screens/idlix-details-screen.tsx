@@ -53,8 +53,9 @@ export default function IdlixDetailsScreen() {
   };
 
   const openPlayback = (id: string, playbackTitle: string, playbackType: IdlixPlaybackType) => {
+    const titleParam = `&detailSlug=${encodeURIComponent(details?.slug || '')}`;
     const seriesParam = playbackType === 'episode' ? `&seriesSlug=${encodeURIComponent(details?.slug || '')}` : '';
-    const href = `/(tabs)/movies/idlix/watch?id=${encodeURIComponent(id)}&title=${encodeURIComponent(playbackTitle)}&type=${playbackType}${seriesParam}` as const;
+    const href = `/(tabs)/movies/idlix/watch?id=${encodeURIComponent(id)}&title=${encodeURIComponent(playbackTitle)}&type=${playbackType}${titleParam}${seriesParam}` as const;
     router.push(href);
   };
 

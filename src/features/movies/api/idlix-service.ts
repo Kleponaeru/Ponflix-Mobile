@@ -26,8 +26,14 @@ export interface IdlixEpisode {
 
 export type IdlixPlaybackType = 'movie' | 'episode';
 
+export interface IdlixSubtitleSource {
+  uri: string;
+  label: string;
+  language?: string;
+}
+
 export type IdlixPlayback =
-  | { kind: 'video'; uri: string; headers: Record<string, string> }
+  | { kind: 'video'; uri: string; headers: Record<string, string>; subtitleSources?: IdlixSubtitleSource[] }
   | { kind: 'embed'; uri: string };
 
 export interface IdlixDetails extends IdlixTitle {
@@ -212,6 +218,177 @@ function findStringDeep(payload: unknown, ...keys: string[]): string {
   return visit(payload);
 }
 
+function collectSubtitleSources(payloads: unknown[], baseUrl = IDLIX_BASE_URL): IdlixSubtitleSource[] {
+  const sources = new Map<string, IdlixSubtitleSource>();
+  const visited = new Set<object>();
+  const subtitleArrayKey = /^(subtitles?|subtitleTracks?|subtitle_tracks|captions?|textTracks?|text_tracks)$/i;
+  const subtitleExtension = /\.(?:vtt|srt|ass|ssa|ttml|dfxp|xml)(?:$|[?#])/i;
+
+  const visit = (value: unknown, inSubtitleList = false) => {
+    if (!value || typeof value !== 'object' || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, inSubtitleList));
+      return;
+    }
+
+    const record = value as Record<string, unknown>;
+    const uri = firstString(record, 'url', 'src', 'file', 'link', 'subtitleUrl', 'subtitle_url', 'source');
+    const type = firstString(record, 'kind', 'type', 'format', 'mimeType', 'mime_type').toLowerCase();
+    const explicitlyNonSubtitle = /video|audio/.test(type);
+    const isSubtitle = !explicitlyNonSubtitle && (inSubtitleList || /subtitle|caption|text\/vtt|application\/x-subrip/.test(type) || subtitleExtension.test(uri));
+    if (uri && isSubtitle) {
+      let absoluteUri: string;
+      try {
+        absoluteUri = new URL(uri, baseUrl).toString();
+      } catch {
+        return;
+      }
+      const language = firstString(record, 'language', 'lang', 'srclang', 'locale') || undefined;
+      const rawLabel = firstString(record, 'label', 'name', 'title');
+      const isIndonesian = /^(id|ind|id-id|indonesian)$/i.test(language || '') || /indonesia|(?:^|[_-])(id|ind|indo)(?:[_-]|\.)/i.test(rawLabel || uri);
+      const label = rawLabel || (isIndonesian ? 'Indonesian' : language || 'Subtitle');
+      sources.set(absoluteUri, { uri: absoluteUri, label, language });
+    }
+
+    for (const [key, child] of Object.entries(record)) {
+      if (child && typeof child === 'object') visit(child, inSubtitleList || subtitleArrayKey.test(key));
+    }
+  };
+
+  payloads.forEach((payload) => visit(payload));
+  return [...sources.values()];
+}
+
+function decodePackedString(value: string): string {
+  return value
+    .replace(/\\x([\da-f]{2})/gi, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\u([\da-f]{4})/gi, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\([\\'"/])/g, '$1');
+}
+
+function unpackPackerScript(script: string): string | null {
+  const packed = /\}\s*\(\s*(['"])((?:\\.|(?!\1)[\s\S])*)\1\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(['"])((?:\\.|(?!\5)[\s\S])*)\5\.split\(['"]\|['"]\)/.exec(script);
+  if (!packed) return null;
+  const [, , packedBody, radixText, countText, , packedWords] = packed;
+  const radix = Number(radixText);
+  const count = Number(countText);
+  if (radix < 2 || radix > 62 || count <= 0 || count > 100_000) return null;
+
+  const body = decodePackedString(packedBody);
+  const words = decodePackedString(packedWords).split('|');
+  const toToken = (value: number) => {
+    let remaining = value;
+    let token = '';
+    do {
+      const digit = remaining % radix;
+      token = (digit > 35 ? String.fromCharCode(digit + 29) : digit.toString(36)) + token;
+      remaining = Math.floor(remaining / radix);
+    } while (remaining > 0);
+    return token;
+  };
+
+  let unpacked = body;
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const word = words[index];
+    if (!word) continue;
+    const token = toToken(index).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    unpacked = unpacked.replace(new RegExp(`\\b${token}\\b`, 'g'), word);
+  }
+  return unpacked;
+}
+
+function findJsonArrayAfterKey(value: string, key: string): unknown[] {
+  const keyMatch = new RegExp(`(?:["']${key}["']|\\b${key}\\b)\\s*:`).exec(value);
+  if (!keyMatch) return [];
+  const start = value.indexOf('[', keyMatch.index + keyMatch[0].length);
+  if (start < 0) return [];
+
+  let depth = 0;
+  let quote = '';
+  let escaped = false;
+  for (let index = start; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = '';
+      continue;
+    }
+    if (character === '"' || character === "'") quote = character;
+    else if (character === '[') depth += 1;
+    else if (character === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const parsed: unknown = JSON.parse(value.slice(start, index + 1));
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+    }
+  }
+  return [];
+}
+
+function subtitleSourcesFromPlayerPage(html: string, pageUrl: string): IdlixSubtitleSource[] {
+  const result = new Map<string, IdlixSubtitleSource>();
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
+  for (const rawScript of scripts) {
+    const script = unpackPackerScript(rawScript) || rawScript;
+    for (const track of findJsonArrayAfterKey(script, 'tracks')) {
+      for (const source of collectSubtitleSources([track], pageUrl)) result.set(source.uri, source);
+    }
+  }
+  return [...result.values()];
+}
+
+async function resolveJeniusplay(
+  playerUrl: string,
+  sourcePageUrl: string,
+  signal?: AbortSignal,
+): Promise<{ videoUrl: string; subtitleSources: IdlixSubtitleSource[] } | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(playerUrl);
+  } catch {
+    return null;
+  }
+  if (!/jeniusplay/i.test(parsed.hostname)) return null;
+
+  const pageResponse = await fetch(playerUrl, {
+    headers: requestHeaders(sourcePageUrl),
+    signal,
+  });
+  if (!pageResponse.ok) return null;
+  const html = await pageResponse.text();
+  const subtitleSources = subtitleSourcesFromPlayerPage(html, playerUrl);
+  const data = parsed.searchParams.get('data') || parsed.pathname.split('/').filter(Boolean).at(-1)?.split('data=').at(-1);
+  if (!data) return null;
+
+  const endpoint = new URL('/player/index.php', parsed.origin);
+  endpoint.searchParams.set('data', data);
+  endpoint.searchParams.set('do', 'getVideo');
+  endpoint.searchParams.set('hash', data);
+  endpoint.searchParams.set('r', sourcePageUrl);
+  const body = `hash=${encodeURIComponent(data)}&r=${encodeURIComponent(sourcePageUrl)}`;
+  const response = await fetch(endpoint.toString(), {
+    method: 'POST',
+    headers: { ...requestHeaders(playerUrl), 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+    body,
+    signal,
+  });
+  if (!response.ok) return null;
+  const payload: unknown = await response.json();
+  const source = findStringDeep(payload, 'videoSource', 'video_source', 'source', 'src');
+  if (!source) return null;
+  return {
+    videoUrl: source.replace(/\.txt(?=($|[?#]))/i, '.m3u8'),
+    subtitleSources,
+  };
+}
+
 function ensureAndroidPlayback(): void {
   if (Platform.OS !== 'android') {
     throw new Error('Idlix playback is currently available in the Android app only.');
@@ -235,34 +412,6 @@ function responseCookie(response: Response): string {
 
 function isDirectVideoUrl(uri: string): boolean {
   return /\.(m3u8|mp4|mpd)(?:$|[?#])/i.test(uri);
-}
-
-async function resolveJeniusplay(iframeUrl: string, signal?: AbortSignal): Promise<string | null> {
-  let parsed: URL;
-  try {
-    parsed = new URL(iframeUrl);
-  } catch {
-    return null;
-  }
-  const data = parsed.pathname.split('/').filter(Boolean).at(-1)?.split('data=').at(-1);
-  if (!data || !/jenius/i.test(parsed.hostname)) return null;
-
-  const endpoint = new URL('/player/index.php', parsed.origin);
-  endpoint.searchParams.set('data', data);
-  endpoint.searchParams.set('do', 'getVideo');
-  endpoint.searchParams.set('hash', data);
-  endpoint.searchParams.set('r', iframeUrl);
-  const response = await fetch(endpoint.toString(), {
-    method: 'POST',
-    headers: { ...requestHeaders(iframeUrl), 'X-Requested-With': 'XMLHttpRequest' },
-    credentials: 'include',
-    body: `hash=${encodeURIComponent(data)}&r=${encodeURIComponent(iframeUrl)}`,
-    signal,
-  });
-  if (!response.ok) return null;
-  const payload: unknown = await response.json();
-  const source = findStringDeep(payload, 'videoSource', 'video_source', 'source', 'src');
-  return source ? source.replace(/\.txt(?=($|[?#]))/i, '.m3u8') : null;
 }
 
 async function waitForGate(milliseconds: number, signal?: AbortSignal, onGateWait?: (seconds: number) => void): Promise<void> {
@@ -352,14 +501,31 @@ export async function fetchIdlixPlayback(
   const iframeUrl = findStringDeep(redeemed, 'url', 'iframeUrl', 'iframe_url');
   if (!iframeUrl) throw new Error('Idlix did not return a video source.');
   const absoluteUrl = new URL(iframeUrl, IDLIX_BASE_URL).toString();
+  const sourcePageUrl = `${IDLIX_BASE_URL}/`;
 
   if (isDirectVideoUrl(absoluteUrl)) {
-    return { kind: 'video', uri: absoluteUrl, headers: requestHeaders(`${IDLIX_BASE_URL}/`) };
+    return {
+      kind: 'video',
+      uri: absoluteUrl,
+      headers: requestHeaders(sourcePageUrl),
+      subtitleSources: collectSubtitleSources([playInfo, claimPayload, redeemed]),
+    };
   }
-  const jeniusSource = await resolveJeniusplay(absoluteUrl, signal).catch(() => null);
-  if (jeniusSource) {
-    return { kind: 'video', uri: jeniusSource, headers: requestHeaders(absoluteUrl) };
+
+  const resolvedPlayer = await resolveJeniusplay(absoluteUrl, sourcePageUrl, signal).catch(() => null);
+  if (resolvedPlayer) {
+    return {
+      kind: 'video',
+      uri: resolvedPlayer.videoUrl,
+      headers: requestHeaders(absoluteUrl),
+      subtitleSources: [
+        ...collectSubtitleSources([playInfo, claimPayload, redeemed]),
+        ...resolvedPlayer.subtitleSources,
+      ],
+    };
   }
+
+  // Preserve the provider player for its in-player quality and subtitle controls.
   return { kind: 'embed', uri: absoluteUrl };
 }
 

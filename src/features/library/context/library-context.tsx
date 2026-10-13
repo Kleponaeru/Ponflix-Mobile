@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { LocalStorage } from '@/features/library/storage';
 import type { LibraryData, LibraryEntry, LibraryEntryInput, LibraryMediaType } from '@/features/library/types/library';
+import { getComicChapterNumber, stripMediaTitleFromSubtitle } from '@/features/library/utils/library-subtitle';
 
 const STORAGE_KEY = 'ponflix-library-v1';
 const MAX_RECENT_ITEMS = 50;
@@ -11,6 +12,7 @@ type LibraryContextValue = {
   bookmarks: LibraryEntry[];
   recent: LibraryEntry[];
   ready: boolean;
+  refreshLibrary: () => Promise<void>;
   isBookmarked: (type: LibraryMediaType, id: string) => boolean;
   toggleBookmark: (entry: LibraryEntryInput) => void;
   recordProgress: (entry: LibraryEntryInput) => void;
@@ -33,7 +35,12 @@ function parseLibrary(rawValue: string | null): LibraryData {
       const parsed = value as Partial<LibraryData>;
       return {
         bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
-        recent: Array.isArray(parsed.recent) ? parsed.recent : [],
+        // Clean existing saved history as it is loaded, so older duplicate
+        // subtitles are fixed without asking the user to reopen each chapter.
+        recent: Array.isArray(parsed.recent) ? parsed.recent.map((entry) => {
+          if (!entry || entry.type !== 'comic') return entry;
+          return { ...entry, subtitle: getComicChapterNumber(entry.title, entry.subtitle, entry.route) };
+        }) : [],
       };
     }
   } catch {
@@ -78,6 +85,14 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     return library.bookmarks.some((entry) => entry.type === type && entry.id === id);
   }, [library.bookmarks]);
 
+  const refreshLibrary = useCallback(async () => {
+    await writesRef.current.catch(() => {});
+    const value = await LocalStorage.getItem(STORAGE_KEY);
+    const next = parseLibrary(value);
+    libraryRef.current = next;
+    setLibrary(next);
+  }, []);
+
   const toggleBookmark = useCallback((input: LibraryEntryInput) => {
     if (!ready) return;
     commit((current) => {
@@ -108,7 +123,16 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         title: input.title || existing?.title || input.id.replace(/-/g, ' '),
         imageUrl: input.imageUrl || existing?.imageUrl || '',
         route: input.route,
-        subtitle: input.subtitle || existing?.subtitle,
+        subtitle: input.type === 'comic'
+          ? getComicChapterNumber(
+              input.title || existing?.title,
+              input.subtitle || existing?.subtitle,
+              input.route || existing?.route,
+            )
+          : stripMediaTitleFromSubtitle(
+              input.title || existing?.title,
+              input.subtitle || existing?.subtitle,
+            ),
         updatedAt: Date.now(),
       };
       const recent = [entry, ...current.recent.filter((item) => entryKey(item) !== key)].slice(0, MAX_RECENT_ITEMS);
@@ -136,13 +160,14 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     bookmarks: library.bookmarks,
     recent: library.recent,
     ready,
+    refreshLibrary,
     isBookmarked,
     toggleBookmark,
     recordProgress,
     removeBookmark,
     removeRecent,
     clearRecent,
-  }), [library.bookmarks, library.recent, ready, isBookmarked, toggleBookmark, recordProgress, removeBookmark, removeRecent, clearRecent]);
+  }), [library.bookmarks, library.recent, ready, refreshLibrary, isBookmarked, toggleBookmark, recordProgress, removeBookmark, removeRecent, clearRecent]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }
