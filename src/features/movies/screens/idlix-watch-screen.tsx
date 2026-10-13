@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -13,6 +13,116 @@ import { fetchIdlixDetails, fetchIdlixPlayback, IDLIX_BASE_URL, type IdlixDetail
 import { IdlixVideoPlayer } from '@/features/movies/components/idlix-video-player';
 
 const { colors, fonts } = PonflixTheme;
+
+const MAJORPLAY_TRACK_PROBE = `(() => {
+  const post = (value) => {
+    try { window.ReactNativeWebView.postMessage(JSON.stringify(value)); } catch (_) {}
+  };
+  post({ type: 'ponflix-majorplay-probe-started', pageTitle: document.title || '', readyState: document.readyState });
+  const state = window.__ponflixProbeState || { timer: false, last: '', config: '' };
+  window.__ponflixProbeState = state;
+  const inspectConfig = (configUrl) => {
+    if (!/\\.json(?:$|[?#])/i.test(configUrl) || state.config === configUrl) return;
+    state.config = configUrl;
+    post({ type: 'ponflix-majorplay-config-started' });
+    fetch(configUrl, { credentials: 'include' }).then(async (response) => {
+      const text = await response.text();
+      let data = null;
+      let parseOk = false;
+      try {
+        data = JSON.parse(text);
+        parseOk = true;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (_) {}
+        }
+      } catch (_) {}
+      const media = new Set();
+      const subtitles = new Map();
+      const contentType = response.headers.get('content-type') || '';
+      const isHls = /mpegurl/i.test(contentType) || text.trimStart().startsWith('#EXTM3U');
+      if (isHls) {
+        const lines = text.split(String.fromCharCode(10)).map((line) => line.trim());
+        lines.forEach((line) => {
+          if (!line.startsWith('#EXT-X-MEDIA:')) return;
+          const attributes = {};
+          for (const match of line.slice('#EXT-X-MEDIA:'.length).matchAll(/([A-Z0-9-]+)=("[^"]*"|[^,]*)/g)) {
+            const raw = match[2].trim();
+            attributes[match[1]] = raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw;
+          }
+          if (attributes.TYPE !== 'SUBTITLES' || !attributes.URI) return;
+          try {
+            const uri = new URL(attributes.URI, configUrl).toString();
+            const language = attributes.LANGUAGE || '';
+            const label = attributes.NAME || language || 'Subtitle';
+            subtitles.set(uri, { uri, label, language });
+          } catch (_) {}
+        });
+        media.add(configUrl);
+      }
+      const walk = (value, key = '', label = 'Subtitle') => {
+        if (typeof value === 'string') {
+          try {
+            const uri = new URL(value, configUrl).toString();
+            if (/\\.(?:m3u8|mp4|mpd)(?:$|[?#])/i.test(uri)) media.add(uri);
+            if (/\\.(?:vtt|srt|ass|ssa|ttml|dfxp|xml)(?:$|[?#])/i.test(uri)) subtitles.set(uri, { uri, label });
+          } catch (_) {}
+          return;
+        }
+        if (!value || typeof value !== 'object') return;
+        if (Array.isArray(value)) { value.forEach((item) => walk(item, key, label)); return; }
+        const itemLabel = value.label || value.name || value.language || value.lang || label;
+        Object.keys(value).forEach((childKey) => walk(value[childKey], childKey, String(itemLabel)));
+      };
+      if (data) walk(data);
+      const preview = text.slice(0, 260)
+        .replace(/https?:[/][/][^\\s"'<>]+/g, (url) => url.split('?')[0] + '?[redacted]')
+        .replace(/[A-Za-z0-9_-]{32,}/g, '[redacted]')
+        .replace(/\\s+/g, ' ');
+      post({ type: 'ponflix-majorplay-config', status: response.status,
+        contentType, isHls, textLength: text.length,
+        parseOk, jsonType: data === null ? 'unparsed' : Array.isArray(data) ? 'array' : typeof data,
+        keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 20) : [],
+        containsMedia: /m3u8|\.mp4|\.mpd/i.test(text), containsSubtitles: /subtitle|caption|\.vtt|\.srt/i.test(text), preview,
+        mediaUrls: Array.from(media).slice(0, 5), subtitles: Array.from(subtitles.values()).slice(0, 12) });
+    }).catch((error) => post({ type: 'ponflix-majorplay-config-error', message: String(error) }));
+  };
+  const scan = () => {
+    try {
+      const video = document.querySelector('video');
+      const source = video ? (video.currentSrc || video.src || video.querySelector('source')?.src || '') : '';
+      if (source) inspectConfig(source);
+      const elements = video ? Array.from(video.querySelectorAll('track')) : [];
+      const subtitles = elements.map((element, index) => ({
+        uri: element.src || '', kind: element.kind || '',
+        label: element.label || element.srclang || 'Subtitle ' + (index + 1), language: element.srclang || ''
+      })).filter((track) => track.uri && (!track.kind || track.kind === 'subtitles' || track.kind === 'captions'));
+      const textTracks = video && video.textTracks ? Array.from(video.textTracks).map((track) => ({
+        kind: track.kind || '', label: track.label || '', language: track.language || '', mode: track.mode || ''
+      })) : [];
+      const subtitleResources = Array.from(performance.getEntriesByType('resource')).flatMap((entry) => {
+        const name = entry.name || '';
+        const lower = name.toLowerCase();
+        if (!['subtitle', 'caption', '.vtt', '.srt', '.ass', '.ttml', '.dfxp'].some((part) => lower.includes(part))) return [];
+        try {
+          const url = new URL(name);
+          const extension = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase() || '';
+          return [{ host: url.hostname, extension, pathDepth: url.pathname.split('/').filter(Boolean).length }];
+        } catch (_) { return []; }
+      }).slice(0, 12);
+      const frames = Array.from(document.querySelectorAll('iframe')).slice(0, 4).map((frame) => {
+        try { const url = new URL(frame.src, document.location.href); return url.hostname + url.pathname; } catch (_) { return 'unreadable-frame-url'; }
+      });
+      const result = { type: 'ponflix-majorplay-tracks', source, subtitles, textTracks, subtitleResources, trackElementCount: elements.length, frames,
+        hasVideo: Boolean(video), pageTitle: (document.title || '').slice(0, 100),
+        scriptCount: document.scripts.length, readyState: document.readyState };
+      const serialized = JSON.stringify(result);
+      if (serialized !== state.last) { state.last = serialized; post(result); }
+    } catch (error) { post({ type: 'ponflix-majorplay-probe-error', message: String(error) }); }
+  };
+  scan();
+  if (!state.timer) { state.timer = true; window.setInterval(scan, 1500); }
+  post({ type: 'ponflix-majorplay-probe-complete-v6' });
+})(); true;`;
 
 export default function IdlixWatchScreen() {
   const params = useLocalSearchParams<{ id?: string | string[]; title?: string | string[]; type?: string | string[]; detailSlug?: string | string[]; seriesSlug?: string | string[] }>();
@@ -31,6 +141,7 @@ export default function IdlixWatchScreen() {
   const [gateWait, setGateWait] = useState(0);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const majorplayWebViewRef = useRef<WebView>(null);
   const isLoading = Boolean(currentId) && loading;
   const visibleError = currentId ? error : 'This item has no playback ID.';
   const episodes = titleDetails?.episodes ?? [];
@@ -114,16 +225,166 @@ export default function IdlixWatchScreen() {
           onRefresh={refresh}
         >
           {playback?.kind === 'embed' ? <KeepScreenAwake /> : null}
-          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={currentTitle} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
+          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={currentTitle} contentType={playback.contentType} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
             <>
               <View style={styles.playerFrame}>
                 <WebView
                   key={currentId}
+                  ref={majorplayWebViewRef}
                   source={{ uri: playback.uri, headers: { Referer: `${IDLIX_BASE_URL}/` } }}
                   style={styles.embed}
                   originWhitelist={['https://*']}
                   javaScriptEnabled
                   domStorageEnabled
+                  injectedJavaScript={/majorplay\.net$/i.test(new URL(playback.uri).hostname) ? MAJORPLAY_TRACK_PROBE : undefined}
+                  onLoadEnd={() => {
+                    if (!/majorplay\.net$/i.test(new URL(playback.uri).hostname)) return;
+                    console.warn('[Idlix] Majorplay WebView loaded; injecting config probe v6.');
+                    setTimeout(() => {
+                      majorplayWebViewRef.current?.injectJavaScript("window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'ponflix-majorplay-probe-ping-v6' })); true;");
+                      majorplayWebViewRef.current?.injectJavaScript(MAJORPLAY_TRACK_PROBE);
+                    }, 300);
+                  }}
+                  onMessage={(event) => {
+                    try {
+                      const rawMessage = event.nativeEvent.data;
+                      const payload = JSON.parse(rawMessage) as {
+                        type?: string;
+                        source?: string;
+                        status?: number;
+                        contentType?: string;
+                        isHls?: boolean;
+                        textLength?: number;
+                        parseOk?: boolean;
+                        jsonType?: string;
+                        containsMedia?: boolean;
+                        containsSubtitles?: boolean;
+                        preview?: string;
+                        keys?: string[];
+                        mediaUrls?: string[];
+                        frames?: string[];
+                        hasVideo?: boolean;
+                        pageTitle?: string;
+                        scriptCount?: number;
+                        readyState?: string;
+                        subtitles?: Array<{ uri?: string; kind?: string; label?: string; language?: string }>;
+                        textTracks?: Array<{ kind?: string; label?: string; language?: string; mode?: string }>;
+                        subtitleResources?: Array<{ host?: string; extension?: string; pathDepth?: number }>;
+                        trackElementCount?: number;
+                      };
+                      console.warn('[Idlix] Majorplay WebView message received.', {
+                        type: payload.type,
+                        mediaUrls: payload.mediaUrls?.length ?? 0,
+                        subtitles: payload.subtitles?.length ?? 0,
+                        hasSource: Boolean(payload.source),
+                      });
+                      if (payload.type === 'ponflix-majorplay-probe-started') {
+                        console.warn('[Idlix] Majorplay WebView probe started.', {
+                          title: payload.pageTitle || '(none)',
+                          readyState: payload.readyState,
+                        });
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-probe-ping-v6') {
+                        console.warn('[Idlix] Majorplay WebView bridge ping received.');
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-probe-complete-v6') {
+                        console.warn('[Idlix] Majorplay WebView probe injection completed.');
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-config') {
+                        const stream = payload.mediaUrls?.[0];
+                        const manifestSubtitleTracks = payload.subtitles ?? [];
+                        const subtitleSources = (payload.isHls ? [] : manifestSubtitleTracks)
+                          .filter((track) => typeof track.uri === 'string' && /^https?:\/\//i.test(track.uri))
+                          .map((track) => ({ uri: track.uri!, label: track.label || 'Subtitle', language: track.language, referer: playback.uri }));
+                        if (!stream) {
+                          console.warn('[Idlix] Majorplay config inspected.', {
+                            status: payload.status,
+                            contentType: payload.contentType,
+                            textLength: payload.textLength,
+                            parseOk: payload.parseOk,
+                            jsonType: payload.jsonType,
+                            keys: payload.keys ?? [],
+                            containsMedia: payload.containsMedia,
+                            containsSubtitles: payload.containsSubtitles,
+                            preview: payload.preview,
+                            subtitles: subtitleSources.length,
+                          });
+                          return;
+                        }
+                        let origin = '';
+                        try { origin = new URL(playback.uri).origin; } catch { return; }
+                        console.warn('[Idlix] Majorplay config contains a stream.', {
+                          hls: Boolean(payload.isHls),
+                          subtitles: subtitleSources.length,
+                          manifestSubtitleTracks: manifestSubtitleTracks.map((track) => track.language || track.label).filter(Boolean),
+                        });
+                        setPlayback({
+                          kind: 'video', uri: stream, contentType: payload.isHls ? 'hls' : undefined,
+                          headers: {
+                            Accept: 'application/json, text/plain, */*', Origin: origin, Referer: playback.uri,
+                            'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36',
+                          },
+                          subtitleSources,
+                        });
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-config-error') {
+                        console.warn('[Idlix] Majorplay config request failed.', { message: payload.message });
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-probe-error') {
+                        console.warn('[Idlix] Majorplay WebView probe error.', { message: payload.message });
+                        return;
+                      }
+                      if (payload.type === 'ponflix-majorplay-config-started') {
+                        console.warn('[Idlix] Majorplay config fetch started.');
+                        return;
+                      }
+                      if (payload.type !== 'ponflix-majorplay-tracks') return;
+                      console.warn('[Idlix] Majorplay embedded subtitle probe.', {
+                        trackElementCount: payload.trackElementCount ?? 0,
+                        textTracks: payload.textTracks ?? [],
+                        externalSubtitleResources: payload.subtitleResources ?? [],
+                      });
+                      if (!payload.source && !payload.subtitles?.length) {
+                        console.warn('[Idlix] Majorplay WebView probe result.', {
+                          hasVideo: Boolean(payload.hasVideo),
+                          title: payload.pageTitle || '(none)',
+                          scripts: payload.scriptCount ?? 0,
+                          frames: payload.frames ?? [],
+                          readyState: payload.readyState,
+                        });
+                        return;
+                      }
+                      const subtitleSources = (payload.subtitles ?? [])
+                        .filter((track) => typeof track.uri === 'string' && /^https?:\/\//i.test(track.uri))
+                        .map((track) => ({ uri: track.uri!, label: track.label || 'Subtitle', language: track.language, referer: playback.uri }));
+                      const source = payload.source ?? '';
+                      if (!/^https?:\/\//i.test(source) || !/(?:\.m3u8|\.mp4|\.mpd|playlist|master)(?:$|[?#])/i.test(source)) {
+                        if (subtitleSources.length) console.warn('[Idlix] Majorplay WebView found subtitle tracks, but no direct video URL.', { count: subtitleSources.length });
+                        return;
+                      }
+                      let origin = '';
+                      try { origin = new URL(playback.uri).origin; } catch { return; }
+                      console.warn('[Idlix] Majorplay WebView found a direct stream.', { subtitles: subtitleSources.length });
+                      setPlayback({
+                        kind: 'video',
+                        uri: source,
+                        headers: {
+                          Accept: 'application/json, text/plain, */*',
+                          Origin: origin,
+                          Referer: playback.uri,
+                          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36',
+                        },
+                        subtitleSources,
+                      });
+                    } catch {
+                      // Ignore page messages that are not the Majorplay track probe.
+                    }
+                  }}
                   allowsFullscreenVideo
                   allowsInlineMediaPlayback
                   mediaPlaybackRequiresUserAction={false}

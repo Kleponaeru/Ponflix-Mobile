@@ -46,10 +46,11 @@ function parseSubtitleCues(content: string): SubtitleCue[] {
   return cues;
 }
 
-export function IdlixVideoPlayer({ uri, headers, title, subtitleSources = [] }: {
+export function IdlixVideoPlayer({ uri, headers, title, contentType, subtitleSources = [] }: {
   uri: string;
   headers: Record<string, string>;
   title: string;
+  contentType?: 'hls';
   subtitleSources?: IdlixSubtitleSource[];
 }) {
   const [loading, setLoading] = useState(true);
@@ -65,7 +66,7 @@ export function IdlixVideoPlayer({ uri, headers, title, subtitleSources = [] }: 
   const [selectedQuality, setSelectedQuality] = useState('Auto');
   const player = useVideoPlayer({
     uri,
-    contentType: /\.m3u8(?:$|[?#])/i.test(uri) ? 'hls' : 'auto',
+    contentType: contentType ?? (/\.m3u8(?:$|[?#])/i.test(uri) ? 'hls' : 'auto'),
     headers,
     metadata: { title },
   }, (videoPlayer) => {

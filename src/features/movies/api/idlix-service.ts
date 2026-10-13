@@ -34,7 +34,7 @@ export interface IdlixSubtitleSource {
 }
 
 export type IdlixPlayback =
-  | { kind: 'video'; uri: string; headers: Record<string, string>; subtitleSources?: IdlixSubtitleSource[] }
+  | { kind: 'video'; uri: string; headers: Record<string, string>; contentType?: 'hls'; subtitleSources?: IdlixSubtitleSource[] }
   | { kind: 'embed'; uri: string };
 
 export interface IdlixDetails extends IdlixTitle {
@@ -273,42 +273,39 @@ function collectSubtitleSources(payloads: unknown[], baseUrl = IDLIX_BASE_URL): 
   return [...sources.values()];
 }
 
-function decodePackedString(value: string): string {
-  return value
-    .replace(/\\x([\da-f]{2})/gi, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
-    .replace(/\\u([\da-f]{4})/gi, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
-    .replace(/\\([\\'"/])/g, '$1');
-}
-
 function unpackPackerScript(script: string): string | null {
-  const packed = /\}\s*\(\s*(['"])((?:\\.|(?!\1)[\s\S])*)\1\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(['"])((?:\\.|(?!\5)[\s\S])*)\5\.split\(['"]\|['"]\)/.exec(script);
+  // Match CloudStream's JsUnpacker pattern used by its Jeniusplay extractor.
+  const packed = /\}\s*\('(.*)',\s*(.*?),\s*(\d+),\s*'(.*?)'\.split\('\|'\)/s.exec(script);
   if (!packed) return null;
-  const [, , packedBody, radixText, countText, , packedWords] = packed;
-  const radix = Number(radixText);
+  const [, rawPayload, radixText, countText, rawWords] = packed;
+  const payload = rawPayload.replace(/\\'/g, "'");
+  const radix = Number.parseInt(radixText, 10);
   const count = Number(countText);
-  if (radix < 2 || radix > 62 || count <= 0 || count > 100_000) return null;
+  const words = rawWords.split('|');
+  if (radix < 2 || radix > 95 || count <= 0 || count > 100_000 || words.length !== count) return null;
 
-  const body = decodePackedString(packedBody);
-  const words = decodePackedString(packedWords).split('|');
-  const toToken = (value: number) => {
-    let remaining = value;
-    let token = '';
-    do {
-      const digit = remaining % radix;
-      token = (digit > 35 ? String.fromCharCode(digit + 29) : digit.toString(36)) + token;
-      remaining = Math.floor(remaining / radix);
-    } while (remaining > 0);
-    return token;
+  const alphabet62 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const alphabet95 = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+  const alphabet = radix > 36 && radix < 62 ? alphabet62.slice(0, radix)
+    : radix === 62 ? alphabet62
+      : radix > 62 && radix < 95 ? alphabet95.slice(0, radix)
+        : radix === 95 ? alphabet95
+          : '';
+  const unbase = (value: string): number => {
+    if (!alphabet) return Number.parseInt(value, radix);
+    let result = 0;
+    for (let index = value.length - 1, power = 0; index >= 0; index -= 1, power += 1) {
+      const digit = alphabet.indexOf(value[index]);
+      if (digit < 0) return -1;
+      result += radix ** power * digit;
+    }
+    return result;
   };
 
-  let unpacked = body;
-  for (let index = count - 1; index >= 0; index -= 1) {
-    const word = words[index];
-    if (!word) continue;
-    const token = toToken(index).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    unpacked = unpacked.replace(new RegExp(`\\b${token}\\b`, 'g'), word);
-  }
-  return unpacked;
+  return payload.replace(/\b[a-zA-Z0-9_]+\b/g, (token) => {
+    const word = words[unbase(token)];
+    return word || token;
+  });
 }
 
 function findJsonArrayAfterKey(value: string, key: string): unknown[] {
@@ -396,17 +393,15 @@ async function resolveJeniusplay(
     headers: requestHeaders(sourcePageUrl),
     signal,
   });
-  if (!pageResponse.ok) return null;
+  if (!pageResponse.ok) throw new Error(`Player page returned HTTP ${pageResponse.status}.`);
   const html = await pageResponse.text();
   const subtitleSources = subtitleSourcesFromPlayerPage(html, playerUrl);
   const data = parsed.searchParams.get('data') || parsed.pathname.split('/').filter(Boolean).at(-1)?.split('data=').at(-1);
-  if (!data) return null;
+  if (!data) throw new Error('Player URL has no video data token.');
 
   const endpoint = new URL('/player/index.php', parsed.origin);
   endpoint.searchParams.set('data', data);
   endpoint.searchParams.set('do', 'getVideo');
-  endpoint.searchParams.set('hash', data);
-  endpoint.searchParams.set('r', sourcePageUrl);
   const body = `hash=${encodeURIComponent(data)}&r=${encodeURIComponent(sourcePageUrl)}`;
   const response = await fetch(endpoint.toString(), {
     method: 'POST',
@@ -414,14 +409,92 @@ async function resolveJeniusplay(
     body,
     signal,
   });
-  if (!response.ok) return null;
+  if (!response.ok) throw new Error(`Player stream request returned HTTP ${response.status}.`);
   const payload: unknown = await response.json();
   const source = findStringDeep(payload, 'videoSource', 'video_source', 'source', 'src');
-  if (!source) return null;
+  if (!source) throw new Error('Player response did not include a video source.');
   return {
     videoUrl: source.replace(/\.txt(?=($|[?#]))/i, '.m3u8'),
     subtitleSources,
   };
+}
+
+async function resolveMajorplay(
+  playerUrl: string,
+  sourcePageUrl: string,
+  signal?: AbortSignal,
+): Promise<{ videoUrl: string; subtitleSources: IdlixSubtitleSource[] } | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(playerUrl);
+  } catch {
+    return null;
+  }
+  if (!/(?:^|\.)majorplay\.net$/i.test(parsed.hostname)) return null;
+
+  const pageResponse = await fetch(playerUrl, {
+    headers: requestHeaders(sourcePageUrl),
+    signal,
+  });
+  if (!pageResponse.ok) throw new Error(`Majorplay page returned HTTP ${pageResponse.status}.`);
+  const html = await pageResponse.text();
+
+  const mediaTags = [...html.matchAll(/<(?:source|video)\b[^>]*>/gi)].map((match) => match[0]);
+  const readMediaAttribute = (tag: string, name: string) => {
+    const attribute = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+    return (attribute?.[1] ?? attribute?.[2] ?? attribute?.[3] ?? '').trim();
+  };
+  let rawVideoUrl = '';
+  for (const tag of mediaTags) {
+    rawVideoUrl = readMediaAttribute(tag, 'src') || readMediaAttribute(tag, 'data-src') || readMediaAttribute(tag, 'data-file');
+    if (rawVideoUrl) break;
+  }
+  // Some player templates put the stream URL in a small JS config object
+  // instead of a <source src="..."> element.
+  if (!rawVideoUrl) {
+    const configUrl = /["'](?:file|src|source)["']\s*:\s*["']([^"']+)["']/i.exec(html)?.[1]?.replace(/\\\//g, '/');
+    if (configUrl && /\.(?:m3u8|mp4|txt)(?:$|[?#])/i.test(configUrl)) rawVideoUrl = configUrl;
+  }
+  if (!rawVideoUrl) {
+    const title = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.replace(/\s+/g, ' ').trim().slice(0, 100) || '(none)';
+    const scriptPaths = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)]
+      .map((match) => match[1] ?? match[2] ?? '')
+      .filter(Boolean)
+      .slice(0, 4)
+      .map((path) => { try { const url = new URL(path, playerUrl); return `${url.hostname}${url.pathname}`; } catch { return path.slice(0, 80); } });
+    const mentionsStream = /m3u8|\.mp4|videoSource|video-source/i.test(html);
+    throw new Error(`Majorplay page had no media URL (title=${title}; mediaTags=${mediaTags.length}; scripts=${scriptPaths.join(',') || 'none'}; mentionsStream=${mentionsStream}).`);
+  }
+
+  let videoUrl: string;
+  try {
+    videoUrl = new URL(rawVideoUrl, playerUrl).toString();
+  } catch {
+    throw new Error('Majorplay returned an invalid video address.');
+  }
+
+  // CloudX reads subtitle metadata from script elements whose data contains
+  // `subtitles`, where each entry has a label and path.
+  const subtitleSources = new Map<string, IdlixSubtitleSource>();
+  const subtitleEntry = /"label"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"[^}]*?"path"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g;
+  for (const scriptMatch of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const script = scriptMatch[1];
+    if (!/subtitles/i.test(script)) continue;
+    for (const match of script.matchAll(subtitleEntry)) {
+      const label = match[1].replace(/\\(["\\])/g, '$1').trim() || 'Subtitle';
+      const path = match[2].replace(/\\(["\\])/g, '$1').trim();
+      if (!path) continue;
+      try {
+        const uri = new URL(path, playerUrl).toString();
+        const language = /indonesia|\b(?:id|ind)\b/i.test(label) ? 'id' : undefined;
+        subtitleSources.set(uri, { uri, label, language, referer: playerUrl });
+      } catch {
+        // Ignore malformed subtitle paths and keep valid tracks.
+      }
+    }
+  }
+
+  return { videoUrl, subtitleSources: [...subtitleSources.values()] };
 }
 
 function ensureAndroidPlayback(): void {
@@ -431,9 +504,15 @@ function ensureAndroidPlayback(): void {
 }
 
 function requestHeaders(referer = `${IDLIX_BASE_URL}/`): Record<string, string> {
+  let origin = IDLIX_BASE_URL;
+  try {
+    origin = new URL(referer).origin;
+  } catch {
+    // Keep the Idlix origin for non-URL referrers.
+  }
   return {
     Accept: 'application/json, text/plain, */*',
-    Origin: IDLIX_BASE_URL,
+    Origin: origin,
     Referer: referer,
     'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36',
   };
@@ -547,7 +626,16 @@ export async function fetchIdlixPlayback(
     };
   }
 
-  const resolvedPlayer = await resolveJeniusplay(absoluteUrl, sourcePageUrl, signal).catch(() => null);
+  const playerHost = new URL(absoluteUrl).hostname;
+  const playerResolver = /(?:^|\.)majorplay\.net$/i.test(playerHost) ? resolveMajorplay : resolveJeniusplay;
+  const resolvedPlayer = await playerResolver(absoluteUrl, sourcePageUrl, signal).catch((reason: unknown) => {
+    if (signal?.aborted) return null;
+    console.warn('[Idlix] Player extraction failed; using embedded player.', {
+      host: playerHost,
+      reason: reason instanceof Error ? reason.message : String(reason),
+    });
+    return null;
+  });
   if (resolvedPlayer) {
     return {
       kind: 'video',
@@ -558,6 +646,10 @@ export async function fetchIdlixPlayback(
         ...resolvedPlayer.subtitleSources,
       ],
     };
+  }
+
+  if (!/jeniusplay|(?:^|\.)majorplay\.net/i.test(playerHost)) {
+    console.warn('[Idlix] No Ponflix extractor for this player host; using embedded player.', { host: playerHost });
   }
 
   // Preserve the provider player for its in-player quality and subtitle controls.
