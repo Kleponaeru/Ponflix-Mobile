@@ -4,7 +4,7 @@
     "slug": "PonflixMobile",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/branding/ponflix-app-icon.png",
+    "icon": "./assets/branding/ponflix-app-icon-padded.png",
     "scheme": "ponflixmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -14,7 +14,7 @@
       "package": "com.ponflix.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#08090B",
-        "foregroundImage": "./assets/branding/ponflix-app-icon.png"
+        "foregroundImage": "./assets/branding/ponflix-app-icon-padded.png"
       },
       "predictiveBackGestureEnabled": false
     },
