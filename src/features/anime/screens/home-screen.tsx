@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { BrandHeader } from '@/components/brand-header';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { SpotlightBanner } from '@/components/spotlight-banner';
 import { AnimeRail } from '@/features/anime/components/anime-rail';
 import { clearAnimeFeedCache, fetchLatestAnime, fetchSpotlightAnime, fetchTrendingAnime } from '@/features/anime/api/anime-service';
@@ -78,10 +79,11 @@ export default function HomeScreen() {
             <Text style={styles.searchGlyph}>⌕</Text>
           </Pressable>
         )} />
-        <ScrollView
+        <AppRefreshScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshHome} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}>
+          refreshing={refreshing}
+          onRefresh={refreshHome}>
           <SpotlightBanner
             imageUrl={spotlight[0]?.thumbnail}
             eyebrow="ANIME SPOTLIGHT"
@@ -129,7 +131,7 @@ export default function HomeScreen() {
             </View>
             {latest.length ? <AnimeRail anime={latest} onAnimePress={openAnime} /> : loading ? <View style={styles.loadingRow}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Loading latest anime…</Text></View> : null}
           </View>
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

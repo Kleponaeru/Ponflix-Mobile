@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimeRail } from '@/features/anime/components/anime-rail';
 import { BrandHeader } from '@/components/brand-header';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { clearAnimeFeedCache, fetchLatestAnime, fetchSpotlightAnime, fetchTrendingAnime } from '@/features/anime/api/anime-service';
 import type { AnimeTitle } from '@/features/anime/types/anime';
 import { PonflixTheme } from '@/constants/theme';
@@ -74,19 +75,12 @@ export default function HomeScreen() {
             <Text style={styles.searchGlyph}>⌕</Text>
           </Pressable>
         )} />
-        <ScrollView
+        <AppRefreshScrollView
           ref={latestRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={(
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refreshHome}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
-              progressBackgroundColor={colors.surface}
-            />
-          )}
+          refreshing={refreshing}
+          onRefresh={refreshHome}
         >
           <View style={styles.hero}>
             {featured?.thumbnail ? (
@@ -170,7 +164,7 @@ export default function HomeScreen() {
               <View style={styles.emptyCard}><Text style={styles.emptyText}>No latest titles are available right now.</Text></View>
             )}
           </View>
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

@@ -6,7 +6,7 @@ import { Alert, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandHeader } from '@/components/brand-header';
-import { AppRefreshControl } from '@/components/app-refresh-control';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { PonflixTheme } from '@/constants/theme';
 import { useLibrary } from '@/features/library/context/library-context';
 import type { LibraryEntry, LibraryMediaType } from '@/features/library/types/library';
@@ -51,10 +51,11 @@ export default function LibraryScreen() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <BrandHeader />
-        <ScrollView
+        <AppRefreshScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshing={refreshing}
+          onRefresh={refresh}
         >
           <View style={styles.pageHeading}>
             <Text style={styles.eyebrow}>YOUR PONFLIX</Text>
@@ -106,7 +107,7 @@ export default function LibraryScreen() {
               />
             </View>
           )}
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

@@ -2,11 +2,11 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
-import { AppRefreshControl } from '@/components/app-refresh-control';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, fetchIdlixPlayback, IDLIX_BASE_URL, type IdlixDetails, type IdlixEpisode, type IdlixPlayback, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
 import { IdlixVideoPlayer } from '@/features/movies/components/idlix-video-player';
@@ -105,11 +105,12 @@ export default function IdlixWatchScreen() {
           </View>
         </View>
 
-        <ScrollView
+        <AppRefreshScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshing={refreshing}
+          onRefresh={refresh}
         >
           {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={currentTitle} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
             <>
@@ -214,7 +215,7 @@ export default function IdlixWatchScreen() {
               }) : <Text style={styles.emptyEpisodes}>No episodes were returned for this series.</Text>}
             </View>
           ) : null}
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

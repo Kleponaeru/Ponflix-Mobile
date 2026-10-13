@@ -1,10 +1,11 @@
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { useLibrary } from '@/features/library/context/library-context';
 import { AnimeStreamPlayer } from '@/features/anime/components/anime-stream-player';
 import { fetchAnimeEpisodes, fetchEpisodePlayback } from '@/features/anime/api/anime-service';
@@ -219,7 +220,7 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <FlatList
+        <AppRefreshFlatList
           data={filteredEpisodes}
           keyExtractor={(episode) => episode.slug}
           renderItem={({ item, index }) => {
@@ -236,7 +237,8 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
           ListEmptyComponent={episodesLoading ? <View style={styles.empty}><ActivityIndicator color={colors.accent} /><Text style={styles.playerHint}>Loading episode list…</Text></View> : <View style={styles.empty}><Text style={styles.playerHint}>No episodes found.</Text></View>}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}
+          refreshing={refreshing}
+          onRefresh={refresh}
           showsVerticalScrollIndicator={false}
           initialNumToRender={10}
           maxToRenderPerBatch={8}

@@ -3,10 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchAnimeDetails, fetchAnimeEpisodes } from '@/features/anime/api/anime-service';
 import type { AnimeDetails, AnimeEpisode } from '@/features/anime/types/anime';
@@ -170,7 +171,7 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <FlatList
+      <AppRefreshFlatList
         data={filteredEpisodes}
         keyExtractor={(episode) => episode.slug}
         renderItem={({ item, index }) => (
@@ -189,7 +190,8 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
         ListEmptyComponent={<View style={styles.empty}><Text style={styles.muted}>{loading ? 'Loading episodes…' : episodes.length ? 'No episodes match that search.' : 'No episodes are listed for this series yet.'}</Text></View>}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
         showsVerticalScrollIndicator={false}
         initialNumToRender={12}
         maxToRenderPerBatch={10}

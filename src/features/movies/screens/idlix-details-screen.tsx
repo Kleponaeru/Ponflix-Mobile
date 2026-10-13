@@ -2,10 +2,10 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppRefreshControl } from '@/components/app-refresh-control';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { BrandHeader } from '@/components/brand-header';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, type IdlixCategory, type IdlixDetails, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
@@ -90,10 +90,11 @@ export default function IdlixDetailsScreen() {
             <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={19} tintColor="#FFF" />
           </Pressable>
         )} />
-        <ScrollView
+        <AppRefreshScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshing={refreshing}
+          onRefresh={refresh}
         >
           <View style={styles.hero}>
             {details.posterUrl ? <Image source={{ uri: details.posterUrl }} contentFit="cover" cachePolicy="memory-disk" transition={180} style={StyleSheet.absoluteFill} /> : null}
@@ -145,7 +146,7 @@ export default function IdlixDetailsScreen() {
             </View>
           ) : null}
 
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

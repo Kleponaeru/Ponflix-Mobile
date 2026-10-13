@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { BrandHeader } from '@/components/brand-header';
 import { SpotlightBanner } from '@/components/spotlight-banner';
 import { ComicCard } from '@/features/comics/components/comic-card';
@@ -160,7 +161,7 @@ function ComicsCategoryScreen({ category, onSelectCategory }: { category: ComicC
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <BrandHeader />
-        <FlatList
+        <AppRefreshFlatList
           ref={listRef}
           key={category + '-' + columns}
           data={comics}
@@ -183,7 +184,8 @@ function ComicsCategoryScreen({ category, onSelectCategory }: { category: ComicC
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={columns > 1 ? styles.column : undefined}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}
+          refreshing={refreshing}
+          onRefresh={refresh}
           onEndReached={loadNextPage}
           onEndReachedThreshold={0.55}
           initialNumToRender={columns * 5}

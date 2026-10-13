@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { BrandHeader } from '@/components/brand-header';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { AnimeCard } from '@/features/anime/components/anime-card';
 import { clearAnimeFeedCache, searchAnime } from '@/features/anime/api/anime-service';
 import type { AnimeTitle } from '@/features/anime/types/anime';
@@ -107,11 +108,12 @@ function DiscoverContent({ initialQuery, initialFilter }: { initialQuery: string
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <BrandHeader />
-        <ScrollView
+        <AppRefreshScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshResults} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}>
+          refreshing={refreshing}
+          onRefresh={refreshResults}>
           <View style={styles.pageHeading}>
             <Text style={styles.kicker}>FIND YOUR NEXT FAVORITE</Text>
             <Text style={styles.title}>Search Ponflix</Text>
@@ -167,7 +169,7 @@ function DiscoverContent({ initialQuery, initialFilter }: { initialQuery: string
               {animeError && comicError ? <Pressable accessibilityRole="button" onPress={() => submitSearch(submittedQuery)} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable> : null}
             </View>
           )}
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

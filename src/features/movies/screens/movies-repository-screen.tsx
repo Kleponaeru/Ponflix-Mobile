@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppRefreshControl } from '@/components/app-refresh-control';
+import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { BrandHeader } from '@/components/brand-header';
 import { PonflixTheme } from '@/constants/theme';
 import {
@@ -77,11 +77,12 @@ export default function MoviesRepositoryScreen() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <BrandHeader />
-        <ScrollView
+        <AppRefreshScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={() => loadRepository(true)} />}
+          refreshing={refreshing}
+          onRefresh={() => loadRepository(true)}
         >
           <View style={styles.heading}>
             <Text style={styles.kicker}>CLOUDSTREAM CATALOG</Text>
@@ -159,7 +160,7 @@ export default function MoviesRepositoryScreen() {
               </View>
             </View>
           ) : null}
-        </ScrollView>
+        </AppRefreshScrollView>
       </SafeAreaView>
     </View>
   );

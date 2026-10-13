@@ -2,10 +2,11 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, StyleSheet, Text, View, type ViewToken } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StatusBar, StyleSheet, Text, View, type ViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicReader } from '@/features/comics/api/comic-service';
 import type { ComicReaderData } from '@/features/comics/types/comic';
@@ -139,7 +140,7 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
         </View>
 
         {totalPages ? (
-          <FlatList
+          <AppRefreshFlatList
             ref={pageListRef}
             data={chapter.images}
             keyExtractor={(uri, index) => chapterId + '-' + index + '-' + uri}
@@ -157,7 +158,8 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
               </View>
             )}
             contentContainerStyle={styles.readerContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}
+            refreshing={refreshing}
+            onRefresh={refresh}
             viewabilityConfig={viewabilityConfig}
             onViewableItemsChanged={onViewableItemsChanged}
             initialNumToRender={2}

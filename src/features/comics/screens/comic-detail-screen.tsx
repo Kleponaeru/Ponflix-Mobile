@@ -3,10 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicDetails } from '@/features/comics/api/comic-service';
 import type { ComicChapter, ComicDetails } from '@/features/comics/types/comic';
@@ -155,7 +156,7 @@ function ComicDetailContent({ id }: { id?: string }) {
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <FlatList
+      <AppRefreshFlatList
         data={filteredChapters}
         keyExtractor={(chapter) => chapter.slug}
         renderItem={({ item, index }) => (
@@ -169,7 +170,8 @@ function ComicDetailContent({ id }: { id?: string }) {
         ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>{chapters.length ? 'No chapters match that search.' : 'No chapters are available yet.'}</Text></View>}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
         showsVerticalScrollIndicator={false}
         initialNumToRender={14}
         maxToRenderPerBatch={10}
