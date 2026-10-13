@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppRefreshControl } from '@/components/app-refresh-control';
 import { BrandHeader } from '@/components/brand-header';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixTitles, searchIdlixTitles, type IdlixCategory, type IdlixTitle } from '@/features/movies/api/idlix-service';
@@ -65,7 +66,7 @@ export default function IdlixCatalogScreen() {
   }, [refreshing]);
 
   const openTitle = useCallback((title: IdlixTitle) => {
-    const href = `/movies/idlix/${encodeURIComponent(title.slug)}?type=${encodeURIComponent(title.type === 'Series' ? 'series' : 'movie')}` as Href;
+    const href = `/(tabs)/movies/idlix/${encodeURIComponent(title.slug)}?type=${encodeURIComponent(title.type === 'Series' ? 'series' : 'movie')}` as Href;
     router.push(href);
   }, []);
 
@@ -82,7 +83,7 @@ export default function IdlixCatalogScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />}>
+          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}>
           <View style={styles.heading}>
             <Text style={styles.kicker}>PONFLIX PROVIDER</Text>
             <Text style={styles.title}>Idlix</Text>

@@ -34,7 +34,7 @@ export function IdlixVideoPlayer({ uri, headers, title }: { uri: string; headers
         style={styles.video}
         nativeControls
         contentFit="contain"
-        fullscreenOptions={{ enable: true, orientation: 'landscape' }}
+        fullscreenOptions={{ enable: true, orientation: 'default' }}
       />
       {loading ? <View pointerEvents="none" style={styles.loading}><ActivityIndicator color={PonflixTheme.colors.accent} size="large" /></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}

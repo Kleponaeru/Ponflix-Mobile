@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppRefreshControl } from '@/components/app-refresh-control';
 import { BrandHeader } from '@/components/brand-header';
 import { PonflixTheme } from '@/constants/theme';
 import {
@@ -21,6 +22,7 @@ export default function MoviesRepositoryScreen() {
   const [repository, setRepository] = useState<CloudstreamRepository | null>(null);
   const [plugins, setPlugins] = useState<CloudstreamPlugin[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [installedProviders, setInstalledProviders] = useState<string[]>([]);
@@ -30,9 +32,10 @@ export default function MoviesRepositoryScreen() {
     getInstalledMovieProviders().then(setInstalledProviders).catch(() => {});
   }, []);
 
-  const loadRepository = useCallback(async () => {
+  const loadRepository = useCallback(async (fromPull = false) => {
     if (loading) return;
     setLoading(true);
+    setRefreshing(fromPull);
     setError('');
     setLoaded(false);
     try {
@@ -46,6 +49,7 @@ export default function MoviesRepositoryScreen() {
       setError(reason instanceof Error ? reason.message : 'Could not load this repository.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [loading, repositoryUrl]);
 
@@ -53,7 +57,7 @@ export default function MoviesRepositoryScreen() {
     const providerId = plugin.internalName?.toLocaleLowerCase();
     if (providerId !== IDLIX_PROVIDER_ID || Platform.OS !== 'android') return;
     if (installedProviders.includes(providerId)) {
-      router.push('/movies/idlix' as Href);
+      router.push('/(tabs)/movies/idlix' as Href);
       return;
     }
     setInstallingId(providerId);
@@ -73,7 +77,12 @@ export default function MoviesRepositoryScreen() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <BrandHeader />
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={() => loadRepository(true)} />}
+        >
           <View style={styles.heading}>
             <Text style={styles.kicker}>CLOUDSTREAM CATALOG</Text>
             <Text style={styles.title}>Movies</Text>
@@ -88,7 +97,7 @@ export default function MoviesRepositoryScreen() {
               autoCorrect={false}
               keyboardType="url"
               onChangeText={setRepositoryUrl}
-              onSubmitEditing={loadRepository}
+              onSubmitEditing={() => loadRepository()}
               placeholder="https://example.com/repo.json"
               placeholderTextColor="rgba(255,255,255,0.36)"
               returnKeyType="go"
@@ -97,7 +106,7 @@ export default function MoviesRepositoryScreen() {
               value={repositoryUrl}
             />
           </View>
-          <Pressable accessibilityRole="button" disabled={loading} onPress={loadRepository} style={({ pressed }) => [styles.loadButton, pressed && !loading && styles.buttonPressed, loading && styles.buttonDisabled]}>
+          <Pressable accessibilityRole="button" disabled={loading} onPress={() => loadRepository()} style={({ pressed }) => [styles.loadButton, pressed && !loading && styles.buttonPressed, loading && styles.buttonDisabled]}>
             {loading ? <ActivityIndicator color="#FFF" size="small" /> : null}
             <Text style={styles.loadButtonText}>{loading ? 'Loading repository…' : 'Load repository'}</Text>
           </Pressable>
@@ -209,7 +218,7 @@ const styles = StyleSheet.create({
   iconLetter: { color: colors.accentSoft, fontFamily: fonts.bold, fontSize: 18 },
   pluginCopy: { flex: 1, minWidth: 0, gap: 4 },
   pluginTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pluginName: { flex: 1, color: '#FFF', fontFamily: fonts.bold, fontSize: 14 },
+  pluginName: { flexShrink: 1, color: '#FFF', fontFamily: fonts.bold, fontSize: 14 },
   statusBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10 },
   statusActive: { backgroundColor: 'rgba(55,170,110,0.17)' },
   statusOther: { backgroundColor: 'rgba(255,255,255,0.09)' },

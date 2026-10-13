@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppRefreshControl } from '@/components/app-refresh-control';
+import { BrandHeader } from '@/components/brand-header';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, type IdlixCategory, type IdlixDetails, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
 
@@ -17,6 +19,7 @@ export default function IdlixDetailsScreen() {
   const category: IdlixCategory = rawType === 'series' ? 'series' : 'movie';
   const [details, setDetails] = useState<IdlixDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -28,7 +31,10 @@ export default function IdlixDetailsScreen() {
     }).catch((reason: unknown) => {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Idlix could not load this title.');
     }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     });
     return () => controller.abort();
   }, [slug, category, reloadKey]);
@@ -39,8 +45,16 @@ export default function IdlixDetailsScreen() {
     setReloadKey((value) => value + 1);
   };
 
+  const refresh = () => {
+    setError('');
+    setRefreshing(true);
+    setLoading(true);
+    setReloadKey((value) => value + 1);
+  };
+
   const openPlayback = (id: string, playbackTitle: string, playbackType: IdlixPlaybackType) => {
-    const href = `/movies/idlix/watch?id=${encodeURIComponent(id)}&title=${encodeURIComponent(playbackTitle)}&type=${playbackType}` as const;
+    const seriesParam = playbackType === 'episode' ? `&seriesSlug=${encodeURIComponent(details?.slug || '')}` : '';
+    const href = `/(tabs)/movies/idlix/watch?id=${encodeURIComponent(id)}&title=${encodeURIComponent(playbackTitle)}&type=${playbackType}${seriesParam}` as const;
     router.push(href);
   };
 
@@ -70,14 +84,16 @@ export default function IdlixDetailsScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <View style={styles.topBar}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to Idlix titles" onPress={() => router.back()} style={styles.backButton}>
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={19} tintColor="#FFF" />
-            </Pressable>
-            <Text style={styles.topLabel}>IDLIX · PONFLIX UI</Text>
-          </View>
-
+        <BrandHeader rightAction={(
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to titles" onPress={() => router.back()} style={styles.backButton}>
+            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={19} tintColor="#FFF" />
+          </Pressable>
+        )} />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
+        >
           <View style={styles.hero}>
             {details.posterUrl ? <Image source={{ uri: details.posterUrl }} contentFit="cover" cachePolicy="memory-disk" transition={180} style={StyleSheet.absoluteFill} /> : null}
             <View style={styles.heroShade} />
@@ -128,10 +144,6 @@ export default function IdlixDetailsScreen() {
             </View>
           ) : null}
 
-          <View style={styles.sourceNote}>
-            <Text style={styles.sourceNoteTitle}>Idlix source</Text>
-            <Text style={styles.sourceNoteBody}>Choose an episode to open it in the Ponflix player.</Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -146,9 +158,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
   content: { paddingBottom: 32 },
-  topBar: { height: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: { width: 34, height: 34, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  topLabel: { color: 'rgba(255,255,255,0.46)', fontFamily: fonts.bold, fontSize: 9, letterSpacing: 1.4 },
   hero: { minHeight: 300, marginHorizontal: 16, marginTop: 5, borderRadius: 14, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: colors.surface },
   heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,6,8,0.42)' },
   heroCopy: { padding: 18 },
@@ -175,9 +185,6 @@ const styles = StyleSheet.create({
   episodeCopy: { flex: 1, gap: 4 },
   episodeTitle: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 12 },
   episodeMeta: { color: 'rgba(255,255,255,0.42)', fontFamily: fonts.regular, fontSize: 10 },
-  sourceNote: { padding: 14, marginHorizontal: 20, marginTop: 24, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(229,9,20,0.2)', backgroundColor: 'rgba(229,9,20,0.055)' },
-  sourceNoteTitle: { color: '#FF9298', fontFamily: fonts.bold, fontSize: 11 },
-  sourceNoteBody: { color: 'rgba(255,255,255,0.55)', fontFamily: fonts.regular, fontSize: 10, lineHeight: 16, marginTop: 5 },
   center: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   messageText: { color: 'rgba(255,255,255,0.53)', fontFamily: fonts.regular, textAlign: 'center', fontSize: 11, lineHeight: 17, marginTop: 6 },
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },

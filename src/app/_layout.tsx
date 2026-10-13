@@ -35,9 +35,6 @@ export default function RootLayout() {
         <Stack.Screen name="anime/[slug]/episode/[episodeSlug]" />
         <Stack.Screen name="comics/[id]" />
         <Stack.Screen name="comics/[id]/chapter/[chapterId]" />
-        <Stack.Screen name="movies/idlix" />
-        <Stack.Screen name="movies/idlix/[slug]" />
-        <Stack.Screen name="movies/idlix/watch" />
       </Stack>
     </LibraryProvider>
   );
