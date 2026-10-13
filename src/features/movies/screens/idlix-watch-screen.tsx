@@ -147,6 +147,12 @@ export default function IdlixWatchScreen() {
   const episodes = titleDetails?.episodes ?? [];
   const episodesLoading = detailsLoading;
   const currentEpisodeIndex = episodes.findIndex((episode) => episode.id === currentId);
+  const currentEpisode = currentEpisodeIndex >= 0 ? episodes[currentEpisodeIndex] : undefined;
+  const routeEpisodeNumber = /\b(?:episode|ep)\s*#?(\d+)\b/i.exec(currentTitle)?.[1];
+  const episodeNumber = currentEpisode?.number ?? (currentEpisodeIndex >= 0 ? currentEpisodeIndex + 1 : undefined) ?? (routeEpisodeNumber ? Number(routeEpisodeNumber) : undefined);
+  const fullscreenEpisodeLabel = type === 'episode'
+    ? [currentEpisode?.season ? `Season ${currentEpisode.season}` : null, episodeNumber ? `Episode ${episodeNumber}` : currentEpisode?.title || currentTitle].filter(Boolean).join(' · ')
+    : undefined;
   const nextEpisode = currentEpisodeIndex >= 0 ? episodes[currentEpisodeIndex + 1] : undefined;
 
   useEffect(() => {
@@ -225,7 +231,7 @@ export default function IdlixWatchScreen() {
           onRefresh={refresh}
         >
           {playback?.kind === 'embed' ? <KeepScreenAwake /> : null}
-          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={currentTitle} contentType={playback.contentType} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
+          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={titleDetails?.title || (type === 'movie' ? currentTitle : routeTitle)} episodeLabel={fullscreenEpisodeLabel} contentType={playback.contentType} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
             <>
               <View style={styles.playerFrame}>
                 <WebView
@@ -239,7 +245,6 @@ export default function IdlixWatchScreen() {
                   injectedJavaScript={/majorplay\.net$/i.test(new URL(playback.uri).hostname) ? MAJORPLAY_TRACK_PROBE : undefined}
                   onLoadEnd={() => {
                     if (!/majorplay\.net$/i.test(new URL(playback.uri).hostname)) return;
-                    console.warn('[Idlix] Majorplay WebView loaded; injecting config probe v6.');
                     setTimeout(() => {
                       majorplayWebViewRef.current?.injectJavaScript("window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'ponflix-majorplay-probe-ping-v6' })); true;");
                       majorplayWebViewRef.current?.injectJavaScript(MAJORPLAY_TRACK_PROBE);
@@ -251,76 +256,25 @@ export default function IdlixWatchScreen() {
                       const payload = JSON.parse(rawMessage) as {
                         type?: string;
                         source?: string;
-                        status?: number;
-                        contentType?: string;
                         isHls?: boolean;
-                        textLength?: number;
-                        parseOk?: boolean;
-                        jsonType?: string;
-                        containsMedia?: boolean;
-                        containsSubtitles?: boolean;
-                        preview?: string;
-                        keys?: string[];
                         mediaUrls?: string[];
-                        frames?: string[];
-                        hasVideo?: boolean;
-                        pageTitle?: string;
-                        scriptCount?: number;
-                        readyState?: string;
                         subtitles?: Array<{ uri?: string; kind?: string; label?: string; language?: string }>;
-                        textTracks?: Array<{ kind?: string; label?: string; language?: string; mode?: string }>;
-                        subtitleResources?: Array<{ host?: string; extension?: string; pathDepth?: number }>;
-                        trackElementCount?: number;
                       };
-                      console.warn('[Idlix] Majorplay WebView message received.', {
-                        type: payload.type,
-                        mediaUrls: payload.mediaUrls?.length ?? 0,
-                        subtitles: payload.subtitles?.length ?? 0,
-                        hasSource: Boolean(payload.source),
-                      });
-                      if (payload.type === 'ponflix-majorplay-probe-started') {
-                        console.warn('[Idlix] Majorplay WebView probe started.', {
-                          title: payload.pageTitle || '(none)',
-                          readyState: payload.readyState,
-                        });
-                        return;
-                      }
-                      if (payload.type === 'ponflix-majorplay-probe-ping-v6') {
-                        console.warn('[Idlix] Majorplay WebView bridge ping received.');
-                        return;
-                      }
-                      if (payload.type === 'ponflix-majorplay-probe-complete-v6') {
-                        console.warn('[Idlix] Majorplay WebView probe injection completed.');
-                        return;
-                      }
                       if (payload.type === 'ponflix-majorplay-config') {
                         const stream = payload.mediaUrls?.[0];
                         const manifestSubtitleTracks = payload.subtitles ?? [];
-                        const subtitleSources = (payload.isHls ? [] : manifestSubtitleTracks)
+                        const inheritedSubtitleSources = playback.kind === 'embed' ? playback.subtitleSources ?? [] : [];
+                        const discoveredSubtitleSources = (payload.isHls ? [] : manifestSubtitleTracks)
                           .filter((track) => typeof track.uri === 'string' && /^https?:\/\//i.test(track.uri))
                           .map((track) => ({ uri: track.uri!, label: track.label || 'Subtitle', language: track.language, referer: playback.uri }));
+                        const subtitleSources = [...new Map(
+                          [...inheritedSubtitleSources, ...discoveredSubtitleSources].map((track) => [track.uri, track]),
+                        ).values()];
                         if (!stream) {
-                          console.warn('[Idlix] Majorplay config inspected.', {
-                            status: payload.status,
-                            contentType: payload.contentType,
-                            textLength: payload.textLength,
-                            parseOk: payload.parseOk,
-                            jsonType: payload.jsonType,
-                            keys: payload.keys ?? [],
-                            containsMedia: payload.containsMedia,
-                            containsSubtitles: payload.containsSubtitles,
-                            preview: payload.preview,
-                            subtitles: subtitleSources.length,
-                          });
                           return;
                         }
                         let origin = '';
                         try { origin = new URL(playback.uri).origin; } catch { return; }
-                        console.warn('[Idlix] Majorplay config contains a stream.', {
-                          hls: Boolean(payload.isHls),
-                          subtitles: subtitleSources.length,
-                          manifestSubtitleTracks: manifestSubtitleTracks.map((track) => track.language || track.label).filter(Boolean),
-                        });
                         setPlayback({
                           kind: 'video', uri: stream, contentType: payload.isHls ? 'hls' : undefined,
                           headers: {
@@ -331,32 +285,8 @@ export default function IdlixWatchScreen() {
                         });
                         return;
                       }
-                      if (payload.type === 'ponflix-majorplay-config-error') {
-                        console.warn('[Idlix] Majorplay config request failed.', { message: payload.message });
-                        return;
-                      }
-                      if (payload.type === 'ponflix-majorplay-probe-error') {
-                        console.warn('[Idlix] Majorplay WebView probe error.', { message: payload.message });
-                        return;
-                      }
-                      if (payload.type === 'ponflix-majorplay-config-started') {
-                        console.warn('[Idlix] Majorplay config fetch started.');
-                        return;
-                      }
                       if (payload.type !== 'ponflix-majorplay-tracks') return;
-                      console.warn('[Idlix] Majorplay embedded subtitle probe.', {
-                        trackElementCount: payload.trackElementCount ?? 0,
-                        textTracks: payload.textTracks ?? [],
-                        externalSubtitleResources: payload.subtitleResources ?? [],
-                      });
                       if (!payload.source && !payload.subtitles?.length) {
-                        console.warn('[Idlix] Majorplay WebView probe result.', {
-                          hasVideo: Boolean(payload.hasVideo),
-                          title: payload.pageTitle || '(none)',
-                          scripts: payload.scriptCount ?? 0,
-                          frames: payload.frames ?? [],
-                          readyState: payload.readyState,
-                        });
                         return;
                       }
                       const subtitleSources = (payload.subtitles ?? [])
@@ -364,12 +294,10 @@ export default function IdlixWatchScreen() {
                         .map((track) => ({ uri: track.uri!, label: track.label || 'Subtitle', language: track.language, referer: playback.uri }));
                       const source = payload.source ?? '';
                       if (!/^https?:\/\//i.test(source) || !/(?:\.m3u8|\.mp4|\.mpd|playlist|master)(?:$|[?#])/i.test(source)) {
-                        if (subtitleSources.length) console.warn('[Idlix] Majorplay WebView found subtitle tracks, but no direct video URL.', { count: subtitleSources.length });
                         return;
                       }
                       let origin = '';
                       try { origin = new URL(playback.uri).origin; } catch { return; }
-                      console.warn('[Idlix] Majorplay WebView found a direct stream.', { subtitles: subtitleSources.length });
                       setPlayback({
                         kind: 'video',
                         uri: source,

@@ -35,7 +35,7 @@ export interface IdlixSubtitleSource {
 
 export type IdlixPlayback =
   | { kind: 'video'; uri: string; headers: Record<string, string>; contentType?: 'hls'; subtitleSources?: IdlixSubtitleSource[] }
-  | { kind: 'embed'; uri: string };
+  | { kind: 'embed'; uri: string; subtitleSources?: IdlixSubtitleSource[] };
 
 export interface IdlixDetails extends IdlixTitle {
   genres: string[];
@@ -246,7 +246,11 @@ function collectSubtitleSources(payloads: unknown[], baseUrl = IDLIX_BASE_URL): 
     }
 
     const record = value as Record<string, unknown>;
-    const uri = firstString(record, 'url', 'src', 'file', 'link', 'subtitleUrl', 'subtitle_url', 'source');
+    // CloudX's Idlix response models subtitle entries as { label, path }.
+    // Only treat `path` as a URL while inside a subtitle collection so API
+    // routes and image paths elsewhere in the payload are not misclassified.
+    const uri = firstString(record, 'url', 'src', 'file', 'link', 'subtitleUrl', 'subtitle_url', 'source')
+      || (inSubtitleList ? firstString(record, 'path') : '');
     const type = firstString(record, 'kind', 'type', 'format', 'mimeType', 'mime_type').toLowerCase();
     const explicitlyNonSubtitle = /video|audio/.test(type);
     const isSubtitle = !explicitlyNonSubtitle && (inSubtitleList || /subtitle|caption|text\/vtt|application\/x-subrip/.test(type) || subtitleExtension.test(uri));
@@ -423,7 +427,7 @@ async function resolveMajorplay(
   playerUrl: string,
   sourcePageUrl: string,
   signal?: AbortSignal,
-): Promise<{ videoUrl: string; subtitleSources: IdlixSubtitleSource[] } | null> {
+): Promise<{ videoUrl: string | null; subtitleSources: IdlixSubtitleSource[] } | null> {
   let parsed: URL;
   try {
     parsed = new URL(playerUrl);
@@ -433,7 +437,14 @@ async function resolveMajorplay(
   if (!/(?:^|\.)majorplay\.net$/i.test(parsed.hostname)) return null;
 
   const pageResponse = await fetch(playerUrl, {
-    headers: requestHeaders(sourcePageUrl),
+    headers: {
+      ...requestHeaders(sourcePageUrl),
+      // CloudX requests Majorplay player pages with a desktop Chrome user agent.
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      // The shared API headers advertise JSON, which can make the player host
+      // return an empty/non-page response instead of its subtitle config HTML.
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    },
     signal,
   });
   if (!pageResponse.ok) throw new Error(`Majorplay page returned HTTP ${pageResponse.status}.`);
@@ -455,29 +466,21 @@ async function resolveMajorplay(
     const configUrl = /["'](?:file|src|source)["']\s*:\s*["']([^"']+)["']/i.exec(html)?.[1]?.replace(/\\\//g, '/');
     if (configUrl && /\.(?:m3u8|mp4|txt)(?:$|[?#])/i.test(configUrl)) rawVideoUrl = configUrl;
   }
-  if (!rawVideoUrl) {
-    const title = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.replace(/\s+/g, ' ').trim().slice(0, 100) || '(none)';
-    const scriptPaths = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)]
-      .map((match) => match[1] ?? match[2] ?? '')
-      .filter(Boolean)
-      .slice(0, 4)
-      .map((path) => { try { const url = new URL(path, playerUrl); return `${url.hostname}${url.pathname}`; } catch { return path.slice(0, 80); } });
-    const mentionsStream = /m3u8|\.mp4|videoSource|video-source/i.test(html);
-    throw new Error(`Majorplay page had no media URL (title=${title}; mediaTags=${mediaTags.length}; scripts=${scriptPaths.join(',') || 'none'}; mentionsStream=${mentionsStream}).`);
-  }
-
-  let videoUrl: string;
-  try {
-    videoUrl = new URL(rawVideoUrl, playerUrl).toString();
-  } catch {
-    throw new Error('Majorplay returned an invalid video address.');
+  let videoUrl: string | null = null;
+  if (rawVideoUrl) {
+    try {
+      videoUrl = new URL(rawVideoUrl, playerUrl).toString();
+    } catch {
+      throw new Error('Majorplay returned an invalid video address.');
+    }
   }
 
   // CloudX reads subtitle metadata from script elements whose data contains
   // `subtitles`, where each entry has a label and path.
   const subtitleSources = new Map<string, IdlixSubtitleSource>();
   const subtitleEntry = /"label"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"[^}]*?"path"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g;
-  for (const scriptMatch of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const scriptMatch of scripts) {
     const script = scriptMatch[1];
     if (!/subtitles/i.test(script)) continue;
     for (const match of script.matchAll(subtitleEntry)) {
@@ -493,7 +496,6 @@ async function resolveMajorplay(
       }
     }
   }
-
   return { videoUrl, subtitleSources: [...subtitleSources.values()] };
 }
 
@@ -612,6 +614,7 @@ export async function fetchIdlixPlayback(
   });
   if (!redeemResponse.ok) throw new Error(`Idlix could not redeem the playback session (HTTP ${redeemResponse.status}).`);
   const redeemed: unknown = await redeemResponse.json();
+  const apiSubtitleSources = collectSubtitleSources([playInfo, claimPayload, redeemed]);
   const iframeUrl = findStringDeep(redeemed, 'url', 'iframeUrl', 'iframe_url');
   if (!iframeUrl) throw new Error('Idlix did not return a video source.');
   const absoluteUrl = new URL(iframeUrl, IDLIX_BASE_URL).toString();
@@ -622,38 +625,32 @@ export async function fetchIdlixPlayback(
       kind: 'video',
       uri: absoluteUrl,
       headers: requestHeaders(sourcePageUrl),
-      subtitleSources: collectSubtitleSources([playInfo, claimPayload, redeemed]),
+      subtitleSources: apiSubtitleSources,
     };
   }
 
   const playerHost = new URL(absoluteUrl).hostname;
   const playerResolver = /(?:^|\.)majorplay\.net$/i.test(playerHost) ? resolveMajorplay : resolveJeniusplay;
-  const resolvedPlayer = await playerResolver(absoluteUrl, sourcePageUrl, signal).catch((reason: unknown) => {
-    if (signal?.aborted) return null;
-    console.warn('[Idlix] Player extraction failed; using embedded player.', {
-      host: playerHost,
-      reason: reason instanceof Error ? reason.message : String(reason),
-    });
-    return null;
-  });
+  const resolvedPlayer = await playerResolver(absoluteUrl, sourcePageUrl, signal).catch(() => null);
   if (resolvedPlayer) {
-    return {
-      kind: 'video',
-      uri: resolvedPlayer.videoUrl,
-      headers: requestHeaders(absoluteUrl),
-      subtitleSources: [
-        ...collectSubtitleSources([playInfo, claimPayload, redeemed]),
-        ...resolvedPlayer.subtitleSources,
-      ],
-    };
-  }
-
-  if (!/jeniusplay|(?:^|\.)majorplay\.net/i.test(playerHost)) {
-    console.warn('[Idlix] No Ponflix extractor for this player host; using embedded player.', { host: playerHost });
+    const subtitleSources = [...apiSubtitleSources, ...resolvedPlayer.subtitleSources];
+    if (resolvedPlayer.videoUrl) {
+      return {
+        kind: 'video',
+        uri: resolvedPlayer.videoUrl,
+        headers: requestHeaders(absoluteUrl),
+        subtitleSources,
+      };
+    }
+    return { kind: 'embed', uri: absoluteUrl, subtitleSources };
   }
 
   // Preserve the provider player for its in-player quality and subtitle controls.
-  return { kind: 'embed', uri: absoluteUrl };
+  return {
+    kind: 'embed',
+    uri: absoluteUrl,
+    subtitleSources: apiSubtitleSources,
+  };
 }
 
 export function fetchIdlixTitles(category: IdlixCategory, page = 1, signal?: AbortSignal) {
