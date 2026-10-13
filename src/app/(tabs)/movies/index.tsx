@@ -1,1 +1,1 @@
-export { default } from '@/features/movies/screens/movies-repository-screen';
+export { default } from '@/features/movies/screens/idlix-catalog-screen';

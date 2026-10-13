@@ -74,11 +74,7 @@ export default function IdlixCatalogScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <BrandHeader rightAction={(
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to movie providers" onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>Providers</Text>
-          </Pressable>
-        )} />
+        <BrandHeader />
         <AppRefreshScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -86,9 +82,9 @@ export default function IdlixCatalogScreen() {
           refreshing={refreshing}
           onRefresh={refresh}>
           <View style={styles.heading}>
-            <Text style={styles.kicker}>PONFLIX PROVIDER</Text>
-            <Text style={styles.title}>Idlix</Text>
-            <Text style={styles.subtitle}>Browse Idlix movies and series on this Android device.</Text>
+            <Text style={styles.kicker}>PONFLIX MOVIES</Text>
+            <Text style={styles.title}>Movies &amp; Series</Text>
+            <Text style={styles.subtitle}>Browse the latest movies and series from Idlix.</Text>
           </View>
 
           <View style={styles.categoryRow}>
@@ -159,8 +155,6 @@ const styles = StyleSheet.create({
   kicker: { color: colors.accent, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 2 },
   title: { color: '#FFF', fontFamily: fonts.extraBold, fontSize: 29, lineHeight: 35, marginTop: 8 },
   subtitle: { color: 'rgba(255,255,255,0.55)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  backButton: { minHeight: 34, paddingHorizontal: 11, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.075)', justifyContent: 'center' },
-  backText: { color: '#FFF', fontFamily: fonts.semibold, fontSize: 11 },
   categoryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   categoryButton: { minHeight: 34, paddingHorizontal: 15, justifyContent: 'center', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.035)' },
   categorySelected: { backgroundColor: colors.accent, borderColor: colors.accent },

@@ -30,6 +30,7 @@ export interface IdlixSubtitleSource {
   uri: string;
   label: string;
   language?: string;
+  referer?: string;
 }
 
 export type IdlixPlayback =
@@ -228,7 +229,19 @@ function collectSubtitleSources(payloads: unknown[], baseUrl = IDLIX_BASE_URL): 
     if (!value || typeof value !== 'object' || visited.has(value)) return;
     visited.add(value);
     if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, inSubtitleList));
+      value.forEach((item) => {
+        if (typeof item === 'string' && inSubtitleList && subtitleExtension.test(item)) {
+          try {
+            const absoluteUri = new URL(item, baseUrl).toString();
+            const isIndonesian = /(?:^|[\\/_-])(?:id|ind|indo|indonesian)(?:[\\/_?.-]|$)/i.test(item);
+            sources.set(absoluteUri, { uri: absoluteUri, label: isIndonesian ? 'Indonesian' : 'Subtitle', referer: baseUrl });
+          } catch {
+            // Skip invalid URLs in the subtitle list.
+          }
+        } else {
+          visit(item, inSubtitleList);
+        }
+      });
       return;
     }
 
@@ -248,7 +261,7 @@ function collectSubtitleSources(payloads: unknown[], baseUrl = IDLIX_BASE_URL): 
       const rawLabel = firstString(record, 'label', 'name', 'title');
       const isIndonesian = /^(id|ind|id-id|indonesian)$/i.test(language || '') || /indonesia|(?:^|[_-])(id|ind|indo)(?:[_-]|\.)/i.test(rawLabel || uri);
       const label = rawLabel || (isIndonesian ? 'Indonesian' : language || 'Subtitle');
-      sources.set(absoluteUri, { uri: absoluteUri, label, language });
+      sources.set(absoluteUri, { uri: absoluteUri, label, language, referer: baseUrl });
     }
 
     for (const [key, child] of Object.entries(record)) {
@@ -334,11 +347,33 @@ function findJsonArrayAfterKey(value: string, key: string): unknown[] {
 
 function subtitleSourcesFromPlayerPage(html: string, pageUrl: string): IdlixSubtitleSource[] {
   const result = new Map<string, IdlixSubtitleSource>();
+  const add = (source: IdlixSubtitleSource) => result.set(source.uri, source);
+
+  for (const match of html.matchAll(/<track\b([^>]*)>/gi)) {
+    const attributes = match[1];
+    const readAttribute = (name: string) => {
+      const attribute = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(attributes);
+      return (attribute?.[1] ?? attribute?.[2] ?? attribute?.[3] ?? '').trim();
+    };
+    const uri = readAttribute('src');
+    const kind = readAttribute('kind');
+    if (!uri || (kind && !/subtitles|captions/i.test(kind))) continue;
+    try {
+      const absoluteUri = new URL(uri, pageUrl).toString();
+      const language = readAttribute('srclang') || undefined;
+      const label = readAttribute('label') || (language && /^(id|ind|id-id)$/i.test(language) ? 'Indonesian' : language || 'Subtitle');
+      add({ uri: absoluteUri, label, language, referer: pageUrl });
+    } catch {
+      // Ignore malformed track URLs and keep scanning the page.
+    }
+  }
+
   const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
   for (const rawScript of scripts) {
     const script = unpackPackerScript(rawScript) || rawScript;
-    for (const track of findJsonArrayAfterKey(script, 'tracks')) {
-      for (const source of collectSubtitleSources([track], pageUrl)) result.set(source.uri, source);
+    for (const key of ['tracks', 'captions', 'subtitles', 'subtitleTracks']) {
+      const tracks = findJsonArrayAfterKey(script, key);
+      for (const source of collectSubtitleSources([{ [key]: tracks }], pageUrl)) add(source);
     }
   }
   return [...result.values()];

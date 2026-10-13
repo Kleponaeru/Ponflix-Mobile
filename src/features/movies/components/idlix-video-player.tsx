@@ -116,7 +116,10 @@ export function IdlixVideoPlayer({ uri, headers, title, subtitleSources = [] }: 
     const controller = new AbortController();
     setSubtitleCues([]);
     setSubtitleError('');
-    fetch(selectedExternalSubtitle.uri, { headers, signal: controller.signal })
+    fetch(selectedExternalSubtitle.uri, {
+      headers: { ...headers, ...(selectedExternalSubtitle.referer ? { Referer: selectedExternalSubtitle.referer } : {}) },
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error('Subtitle request failed.');
         const text = await response.text();
