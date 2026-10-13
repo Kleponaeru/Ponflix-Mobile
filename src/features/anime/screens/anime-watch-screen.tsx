@@ -132,7 +132,7 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
   const listHeader = (
     <View>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to series details" onPress={() => router.back()} style={styles.iconButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to series details" onPress={() => { if (slug) router.replace({ pathname: '/anime/[slug]', params: { slug } }); }} style={styles.iconButton}>
           <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} size={20} tintColor="#FFF" />
         </Pressable>
         <View style={styles.topTitle}>
