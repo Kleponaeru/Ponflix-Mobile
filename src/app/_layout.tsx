@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { PonflixTheme } from '@/constants/theme';
+import { LaunchScreen } from '@/features/launch/components/launch-screen';
 import { LibraryProvider } from '@/features/library/context/library-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -36,6 +37,7 @@ export default function RootLayout() {
         <Stack.Screen name="comics/[id]" />
         <Stack.Screen name="comics/[id]/chapter/[chapterId]" />
       </Stack>
+      <LaunchScreen />
     </LibraryProvider>
   );
 }
