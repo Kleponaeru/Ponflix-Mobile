@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { BrandHeader } from '@/components/brand-header';
 import { SpotlightBanner } from '@/components/spotlight-banner';
@@ -174,13 +175,13 @@ function ComicsCategoryScreen({ category, onSelectCategory }: { category: ComicC
           )}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={loading ? (
-            <View style={styles.stateBox}><ActivityIndicator color={colors.accent} /><Text style={styles.stateText}>Finding your next read…</Text></View>
+            <View style={styles.stateBox}><PonflixLoader size="small" /><Text style={styles.stateText}>Finding your next read…</Text></View>
           ) : error ? (
             <View style={styles.stateBox}><Text style={styles.stateTitle}>Couldn’t load comics</Text><Text style={styles.stateText}>{error}</Text><Pressable onPress={refresh} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable></View>
           ) : (
             <View style={styles.stateBox}><Text style={styles.stateText}>No titles found in this collection.</Text></View>
           )}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.accent} style={styles.footerLoader} /> : null}
+          ListFooterComponent={loadingMore ? <PonflixLoader size="small" /> : null}
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={columns > 1 ? styles.column : undefined}
           showsVerticalScrollIndicator={false}

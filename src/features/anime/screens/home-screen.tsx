@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { BrandHeader } from '@/components/brand-header';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { SpotlightBanner } from '@/components/spotlight-banner';
 import { AnimeRail } from '@/features/anime/components/anime-rail';
@@ -109,7 +110,7 @@ export default function HomeScreen() {
               <View><Text style={styles.sectionEyebrow}>POPULAR RIGHT NOW</Text><Text style={styles.sectionTitle}>Anime to watch</Text></View>
               <Pressable accessibilityRole="button" onPress={() => router.push('/anime')}><Text style={styles.seeAll}>All anime ›</Text></Pressable>
             </View>
-            {trending.length ? <AnimeRail anime={trending.slice(0, 10)} ranked onAnimePress={openAnime} /> : loading ? <View style={styles.loadingRow}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Loading anime…</Text></View> : null}
+            {trending.length ? <AnimeRail anime={trending.slice(0, 10)} ranked onAnimePress={openAnime} /> : loading ? <View style={styles.loadingRow}><PonflixLoader size="small" /><Text style={styles.loadingText}>Loading anime…</Text></View> : null}
           </View>
 
           <View style={styles.section}>
@@ -121,7 +122,7 @@ export default function HomeScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.comicRail}>
                 {comics.map((comic) => <ComicCard key={comic.id} comic={comic} width={146} onPress={openComic} />)}
               </ScrollView>
-            ) : loading ? <View style={styles.loadingRow}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Loading comics…</Text></View> : null}
+            ) : loading ? <View style={styles.loadingRow}><PonflixLoader size="small" /><Text style={styles.loadingText}>Loading comics…</Text></View> : null}
           </View>
 
           <View style={styles.section}>
@@ -129,7 +130,7 @@ export default function HomeScreen() {
               <View><Text style={styles.sectionEyebrow}>FRESHLY UPDATED</Text><Text style={styles.sectionTitle}>Latest anime</Text></View>
               <Pressable accessibilityRole="button" onPress={() => router.push('/anime')}><Text style={styles.seeAll}>All anime ›</Text></Pressable>
             </View>
-            {latest.length ? <AnimeRail anime={latest} onAnimePress={openAnime} /> : loading ? <View style={styles.loadingRow}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Loading latest anime…</Text></View> : null}
+            {latest.length ? <AnimeRail anime={latest} onAnimePress={openAnime} /> : loading ? <View style={styles.loadingRow}><PonflixLoader size="small" /><Text style={styles.loadingText}>Loading latest anime…</Text></View> : null}
           </View>
         </AppRefreshScrollView>
       </SafeAreaView>

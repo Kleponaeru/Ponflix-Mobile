@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimeRail } from '@/features/anime/components/anime-rail';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { BrandHeader } from '@/components/brand-header';
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { clearAnimeFeedCache, fetchLatestAnime, fetchSpotlightAnime, fetchTrendingAnime } from '@/features/anime/api/anime-service';
@@ -88,7 +89,7 @@ export default function HomeScreen() {
             ) : null}
             <View style={styles.heroShade} />
             <View style={styles.heroCopy}>
-              {loading && !featured ? <ActivityIndicator color={colors.accent} size="small" /> : null}
+              {loading && !featured ? <PonflixLoader size="small" /> : null}
               <View style={styles.heroEyebrowRow}><View style={styles.redMark} /><Text style={styles.heroEyebrow}>ANIME SPOTLIGHT</Text></View>
               <Text numberOfLines={3} style={styles.heroTitle}>{featured?.title || (loading ? 'Discover your next series' : 'Your next series starts here.')}</Text>
               {featured ? (
@@ -159,7 +160,7 @@ export default function HomeScreen() {
             {latest.length ? (
               <AnimeRail anime={latest} onAnimePress={openAnime} />
             ) : loading ? (
-              <View style={styles.loadingRow}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Loading latest anime…</Text></View>
+              <View style={styles.loadingRow}><PonflixLoader size="small" /><Text style={styles.loadingText}>Loading latest anime…</Text></View>
             ) : (
               <View style={styles.emptyCard}><Text style={styles.emptyText}>No latest titles are available right now.</Text></View>
             )}

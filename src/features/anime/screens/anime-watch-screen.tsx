@@ -1,10 +1,11 @@
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { useLibrary } from '@/features/library/context/library-context';
 import { AnimeStreamPlayer } from '@/features/anime/components/anime-stream-player';
@@ -146,7 +147,7 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
 
       <View style={styles.playerFrame}>
         {loading ? (
-          <View style={styles.playerMessage}><ActivityIndicator color={colors.accent} size="large" /><Text style={styles.playerMessageText}>Connecting to stream…</Text></View>
+          <View style={styles.playerMessage}><PonflixLoader size="large" /><Text style={styles.playerMessageText}>Connecting to stream…</Text></View>
         ) : error || playback?.playbackAvailable === false || !playerUrl ? (
           <View style={styles.playerMessage}>
             <SymbolView name={{ ios: 'play.rectangle', android: 'live_tv', web: 'live_tv' }} size={35} tintColor="rgba(255,255,255,0.5)" />
@@ -234,7 +235,7 @@ function AnimeWatchContent({ slug, episodeSlug }: { slug?: string; episodeSlug?:
             );
           }}
           ListHeaderComponent={listHeader}
-          ListEmptyComponent={episodesLoading ? <View style={styles.empty}><ActivityIndicator color={colors.accent} /><Text style={styles.playerHint}>Loading episode list…</Text></View> : <View style={styles.empty}><Text style={styles.playerHint}>No episodes found.</Text></View>}
+          ListEmptyComponent={episodesLoading ? <View style={styles.empty}><PonflixLoader size="small" /><Text style={styles.playerHint}>Loading episode list…</Text></View> : <View style={styles.empty}><Text style={styles.playerHint}>No episodes found.</Text></View>}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshing={refreshing}

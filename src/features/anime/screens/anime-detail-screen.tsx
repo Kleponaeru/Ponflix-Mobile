@@ -3,11 +3,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchAnimeDetails, fetchAnimeEpisodes } from '@/features/anime/api/anime-service';
 import type { AnimeDetails, AnimeEpisode } from '@/features/anime/types/anime';
@@ -82,7 +83,7 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
   };
 
   if (loading && !anime) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /><Text style={styles.muted}>Loading series details…</Text></View>;
+    return <View style={styles.center}><PonflixLoader size="large" /><Text style={styles.muted}>Loading series details…</Text></View>;
   }
 
   if (error || !anime) {
@@ -188,7 +189,7 @@ function AnimeDetailContent({ slug }: { slug?: string }) {
           </Pressable>
         )}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={<View style={styles.empty}><Text style={styles.muted}>{loading ? 'Loading episodes…' : episodes.length ? 'No episodes match that search.' : 'No episodes are listed for this series yet.'}</Text></View>}
+        ListEmptyComponent={<View style={styles.empty}>{loading ? <PonflixLoader size="small" /> : <Text style={styles.muted}>{episodes.length ? 'No episodes match that search.' : 'No episodes are listed for this series yet.'}</Text>}</View>}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={refreshing}

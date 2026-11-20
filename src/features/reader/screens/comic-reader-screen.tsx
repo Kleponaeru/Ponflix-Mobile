@@ -2,12 +2,13 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StatusBar, StyleSheet, Text, View, type ViewToken } from 'react-native';
+import { FlatList, Pressable, StatusBar, StyleSheet, Text, View, type ViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
 import { KeepScreenAwake } from '@/components/keep-screen-awake';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicReader } from '@/features/comics/api/comic-service';
 import type { ComicReaderData } from '@/features/comics/types/comic';
@@ -99,7 +100,7 @@ function ComicReaderContent({ id, chapterId }: { id?: string; chapterId?: string
   if (loading && !chapter) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
+        <PonflixLoader size="large" />
         <Text style={styles.centerText}>Opening chapter…</Text>
       </View>
     );

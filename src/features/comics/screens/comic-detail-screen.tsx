@@ -3,11 +3,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
 import { AppRefreshFlatList } from '@/components/app-refresh-flat-list';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { useLibrary } from '@/features/library/context/library-context';
 import { fetchComicDetails } from '@/features/comics/api/comic-service';
 import type { ComicChapter, ComicDetails } from '@/features/comics/types/comic';
@@ -78,7 +79,7 @@ function ComicDetailContent({ id }: { id?: string }) {
   };
 
   if (loading && !comic) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /><Text style={styles.centerText}>Loading title…</Text></View>;
+    return <View style={styles.center}><PonflixLoader size="large" /><Text style={styles.centerText}>Loading title…</Text></View>;
   }
 
   if (error || !comic) {

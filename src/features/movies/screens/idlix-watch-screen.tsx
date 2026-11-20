@@ -2,12 +2,13 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { KeepScreenAwake } from '@/components/keep-screen-awake';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, fetchIdlixPlayback, IDLIX_BASE_URL, type IdlixDetails, type IdlixEpisode, type IdlixPlayback, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
 import { IdlixVideoPlayer } from '@/features/movies/components/idlix-video-player';
@@ -415,7 +416,7 @@ export default function IdlixWatchScreen() {
             </>
           ) : isLoading ? (
             <View style={styles.state}>
-              <ActivityIndicator color={colors.accent} size="large" />
+              <PonflixLoader size="large" />
               <Text style={styles.stateTitle}>{gateWait ? `Preparing source: ${gateWait}s` : 'Preparing video…'}</Text>
               <Text style={styles.stateBody}>Connecting to the video source.</Text>
             </View>
@@ -472,7 +473,7 @@ export default function IdlixWatchScreen() {
               </View>
 
               {episodesLoading ? (
-                <View style={styles.episodesLoading}><ActivityIndicator color={colors.accent} size="small" /><Text style={styles.stateBody}>Loading episodes…</Text></View>
+                <View style={styles.episodesLoading}><PonflixLoader size="small" /><Text style={styles.stateBody}>Loading episodes…</Text></View>
               ) : episodes.length ? episodes.map((episode, index) => {
                 const active = episode.id === currentId;
                 return (

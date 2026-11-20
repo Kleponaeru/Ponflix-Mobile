@@ -2,11 +2,12 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { BrandHeader } from '@/components/brand-header';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixDetails, type IdlixCategory, type IdlixDetails, type IdlixPlaybackType } from '@/features/movies/api/idlix-service';
 
@@ -64,7 +65,7 @@ export default function IdlixDetailsScreen() {
   }
 
   if (loading && !details) {
-    return <View style={styles.center}><ActivityIndicator color={colors.accent} size="large" /><Text style={styles.messageText}>Loading title details…</Text></View>;
+    return <View style={styles.center}><PonflixLoader size="large" /><Text style={styles.messageText}>Loading title details…</Text></View>;
   }
 
   if (!details) {

@@ -3,9 +3,10 @@ import { useEvent } from 'expo';
 import { SymbolView } from 'expo-symbols';
 import { setVisibilityAsync } from 'expo-navigation-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
 import { KeepScreenAwake } from '@/components/keep-screen-awake';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { PonflixTheme } from '@/constants/theme';
 import type { IdlixSubtitleSource } from '@/features/movies/api/idlix-service';
 
@@ -381,7 +382,7 @@ export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentTyp
           <SymbolView name={{ ios: centerFeedback === 'play' ? 'play.fill' : 'pause.fill', android: centerFeedback === 'play' ? 'play_arrow' : 'pause', web: centerFeedback === 'play' ? 'play_arrow' : 'pause' }} size={34} tintColor="#FFF" />
         </View>
       ) : null}
-      {loading ? <View pointerEvents="none" style={styles.loading}><ActivityIndicator color={PonflixTheme.colors.accent} size="large" /></View> : null}
+      {loading ? <View pointerEvents="none" style={styles.loading}><PonflixLoader size="small" /></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}
       {fullscreen ? (
         <Animated.View pointerEvents="none" style={[styles.fullscreenHeading, { opacity: controlsOpacity }]}>

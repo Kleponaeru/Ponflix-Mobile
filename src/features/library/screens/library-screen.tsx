@@ -6,6 +6,7 @@ import { Alert, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandHeader } from '@/components/brand-header';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { PonflixTheme } from '@/constants/theme';
 import { useLibrary } from '@/features/library/context/library-context';
@@ -69,7 +70,7 @@ export default function LibraryScreen() {
           </View>
 
           {!ready ? (
-            <View style={styles.emptyCard}><Text style={styles.emptyText}>Loading your library…</Text></View>
+            <View style={[styles.emptyCard, styles.loadingCard]}><PonflixLoader size="small" /><Text style={styles.emptyText}>Loading your library…</Text></View>
           ) : activeTab === 'history' ? (
             <View style={styles.tabContent}>
               <LibrarySection
@@ -229,6 +230,7 @@ const styles = StyleSheet.create({
   removeButton: { position: 'absolute', top: 7, right: 7, width: 25, height: 25, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: 'rgba(8,9,11,0.72)' },
   pressed: { opacity: 0.82 },
   emptyCard: { minHeight: 76, justifyContent: 'center', marginHorizontal: 20, paddingHorizontal: 15, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.035)' },
+  loadingCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyText: { color: 'rgba(255,255,255,0.46)', fontFamily: fonts.regular, fontSize: 12, lineHeight: 18 },
   clearHistory: { alignSelf: 'flex-start', marginHorizontal: 20, marginTop: 22, minHeight: 38, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   clearHistoryText: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.medium, fontSize: 11 },

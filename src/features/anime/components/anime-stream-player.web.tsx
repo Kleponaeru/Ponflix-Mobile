@@ -1,8 +1,8 @@
 import { useState, type ComponentType } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { KeepScreenAwake } from '@/components/keep-screen-awake';
-import { PonflixTheme } from '@/constants/theme';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import type { AnimeStreamPlayerProps } from '@/features/anime/components/anime-stream-player.types';
 
 type IframeProps = {
@@ -31,7 +31,7 @@ export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
         onError={() => { setLoading(false); onError(); }}
         style={{ width: '100%', height: '100%', border: '0' }}
       />
-      {loading ? <View pointerEvents="none" style={styles.loading}><ActivityIndicator color={PonflixTheme.colors.accent} /></View> : null}
+      {loading ? <View pointerEvents="none" style={styles.loading}><PonflixLoader size="small" /></View> : null}
     </View>
   );
 }

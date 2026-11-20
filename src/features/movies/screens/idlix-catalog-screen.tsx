@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { BrandHeader } from '@/components/brand-header';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { PonflixTheme } from '@/constants/theme';
 import { fetchIdlixTitles, searchIdlixTitles, type IdlixCategory, type IdlixTitle } from '@/features/movies/api/idlix-service';
 
@@ -116,7 +117,7 @@ export default function IdlixCatalogScreen() {
             {!loading ? <Text style={styles.count}>{titles.length}</Text> : null}
           </View>
 
-          {loading ? <View style={styles.state}><ActivityIndicator color={colors.accent} /><Text style={styles.stateText}>Loading titles…</Text></View> : error ? (
+          {loading ? <View style={styles.state}><PonflixLoader size="small" /><Text style={styles.stateText}>Loading titles…</Text></View> : error ? (
             <View style={styles.stateCard}>
               <Text style={styles.stateTitle}>Movies couldn’t load</Text>
               <Text style={styles.stateText}>{error}</Text>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { KeepScreenAwake } from '@/components/keep-screen-awake';
-import { PonflixTheme } from '@/constants/theme';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import type { AnimeStreamPlayerProps } from '@/features/anime/components/anime-stream-player.types';
 
 export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
@@ -31,7 +31,7 @@ export function AnimeStreamPlayer({ uri, onError }: AnimeStreamPlayerProps) {
         onError={() => { setLoading(false); onError(); }}
         startInLoadingState
       />
-      {loading ? <View pointerEvents="none" style={styles.loading}><ActivityIndicator color={PonflixTheme.colors.accent} /></View> : null}
+      {loading ? <View pointerEvents="none" style={styles.loading}><PonflixLoader size="small" /></View> : null}
     </View>
   );
 }

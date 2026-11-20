@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PonflixTheme } from '@/constants/theme';
+import { PonflixLoader } from '@/components/ui/ponflix-loader';
 import { BrandHeader } from '@/components/brand-header';
 import { AppRefreshScrollView } from '@/components/app-refresh-scroll-view';
 import { AnimeCard } from '@/features/anime/components/anime-card';
@@ -153,7 +154,7 @@ function DiscoverContent({ initialQuery, initialFilter }: { initialQuery: string
           </View>
 
           {loading ? (
-            <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Searching anime and comics…</Text></View>
+            <View style={styles.loading}><PonflixLoader size="small" /><Text style={styles.loadingText}>Searching anime and comics…</Text></View>
           ) : results.length ? (
             <View style={styles.grid}>
               {results.map((result) => result.kind === 'anime' ? (
