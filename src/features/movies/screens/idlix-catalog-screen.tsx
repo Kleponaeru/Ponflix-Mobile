@@ -40,7 +40,7 @@ export default function IdlixCatalogScreen() {
     }).catch((reason: unknown) => {
       if (controller.signal.aborted) return;
       setTitles([]);
-      setError(reason instanceof Error ? reason.message : 'Idlix could not load titles.');
+      setError(reason instanceof Error ? reason.message : 'Could not load titles.');
     }).finally(() => {
       if (!controller.signal.aborted) {
         setLoading(false);
@@ -84,7 +84,7 @@ export default function IdlixCatalogScreen() {
           <View style={styles.heading}>
             <Text style={styles.kicker}>PONFLIX MOVIES</Text>
             <Text style={styles.title}>Movies &amp; Series</Text>
-            <Text style={styles.subtitle}>Browse the latest movies and series from Idlix.</Text>
+            <Text style={styles.subtitle}>Browse the latest movies and series on Ponflix.</Text>
           </View>
 
           <View style={styles.categoryRow}>
@@ -97,18 +97,18 @@ export default function IdlixCatalogScreen() {
 
           <View style={styles.searchBar}>
             <TextInput
-              accessibilityLabel="Search Idlix"
+              accessibilityLabel="Search movies and series"
               autoCapitalize="none"
               autoCorrect={false}
               onChangeText={setQuery}
               onSubmitEditing={submitSearch}
-              placeholder="Search Idlix titles"
+              placeholder="Search movies and series"
               placeholderTextColor="rgba(255,255,255,0.38)"
               returnKeyType="search"
               style={styles.searchInput}
               value={query}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Search Idlix" onPress={submitSearch} style={styles.searchButton}><Text style={styles.searchGlyph}>⌕</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Search movies and series" onPress={submitSearch} style={styles.searchButton}><Text style={styles.searchGlyph}>⌕</Text></Pressable>
           </View>
 
           <View style={styles.listHeading}>
@@ -116,9 +116,9 @@ export default function IdlixCatalogScreen() {
             {!loading ? <Text style={styles.count}>{titles.length}</Text> : null}
           </View>
 
-          {loading ? <View style={styles.state}><ActivityIndicator color={colors.accent} /><Text style={styles.stateText}>Loading from Idlix…</Text></View> : error ? (
+          {loading ? <View style={styles.state}><ActivityIndicator color={colors.accent} /><Text style={styles.stateText}>Loading titles…</Text></View> : error ? (
             <View style={styles.stateCard}>
-              <Text style={styles.stateTitle}>Idlix couldn’t load</Text>
+              <Text style={styles.stateTitle}>Movies couldn’t load</Text>
               <Text style={styles.stateText}>{error}</Text>
               <Pressable accessibilityRole="button" onPress={refresh} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable>
             </View>
@@ -135,7 +135,7 @@ export default function IdlixCatalogScreen() {
 
 function TitleCard({ title, width, onPress }: { title: IdlixTitle; width: number; onPress: (title: IdlixTitle) => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`Open ${title.title} on Idlix`} onPress={() => onPress(title)} style={({ pressed }) => [styles.titleCard, { width }, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Open ${title.title}`} onPress={() => onPress(title)} style={({ pressed }) => [styles.titleCard, { width }, pressed && styles.pressed]}>
       <View style={styles.poster}>
         {title.posterUrl ? <Image source={{ uri: title.posterUrl }} contentFit="cover" cachePolicy="memory-disk" transition={180} style={StyleSheet.absoluteFill} /> : <View style={styles.posterFallback}><Text style={styles.posterFallbackText}>PONFLIX</Text></View>}
         <View style={styles.posterShade} />

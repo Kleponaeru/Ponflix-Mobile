@@ -176,7 +176,7 @@ function mapTitle(value: unknown, category: IdlixCategory): IdlixTitle | null {
 
 async function fetchTitles(path: string, category: IdlixCategory, signal?: AbortSignal): Promise<IdlixTitle[]> {
   if (Platform.OS !== 'android') {
-    throw new Error('Idlix direct requests are available in the Android app. The web version needs a server proxy.');
+    throw new Error('Movie browsing is available in the Android app. The web version needs a server proxy.');
   }
   const response = await fetch(`${IDLIX_BASE_URL}${path}`, {
     headers: {
@@ -186,7 +186,7 @@ async function fetchTitles(path: string, category: IdlixCategory, signal?: Abort
     },
     signal,
   });
-  if (!response.ok) throw new Error(`Idlix returned HTTP ${response.status}.`);
+  if (!response.ok) throw new Error(`The movie service returned HTTP ${response.status}.`);
   const payload: unknown = await response.json();
   return unwrapItems(payload).map((item) => mapTitle(item, category)).filter((item): item is IdlixTitle => item !== null);
 }
@@ -501,7 +501,7 @@ async function resolveMajorplay(
 
 function ensureAndroidPlayback(): void {
   if (Platform.OS !== 'android') {
-    throw new Error('Idlix playback is currently available in the Android app only.');
+    throw new Error('Movie playback is currently available in the Android app only.');
   }
 }
 
@@ -564,11 +564,11 @@ export async function fetchIdlixPlayback(
     credentials: 'include',
     signal,
   });
-  if (!playInfoResponse.ok) throw new Error(`Idlix could not start playback (HTTP ${playInfoResponse.status}).`);
+  if (!playInfoResponse.ok) throw new Error(`Could not start playback (HTTP ${playInfoResponse.status}).`);
   const playInfo: unknown = await playInfoResponse.json();
   let cookie = responseCookie(playInfoResponse);
   const gateToken = findStringDeep(playInfo, 'gateToken', 'gate_token');
-  if (!gateToken) throw new Error('Idlix did not return a playback token for this item.');
+  if (!gateToken) throw new Error('Could not find a playback token for this item.');
 
   const unlockAt = Number(findStringDeep(playInfo, 'unlockAt', 'unlock_at'));
   const serverNow = Number(findStringDeep(playInfo, 'serverNow', 'server_now'));
@@ -589,18 +589,18 @@ export async function fetchIdlixPlayback(
     body: JSON.stringify({ gateToken }),
     signal,
   });
-  if (!claimResponse.ok) throw new Error(`Idlix could not claim the playback session (HTTP ${claimResponse.status}).`);
+  if (!claimResponse.ok) throw new Error(`Could not start the playback session (HTTP ${claimResponse.status}).`);
   cookie = [cookie, responseCookie(claimResponse)].filter(Boolean).join('; ');
   const claimPayload: unknown = await claimResponse.json();
   const claim = findStringDeep(claimPayload, 'claim');
   const redeemUrl = findStringDeep(claimPayload, 'redeemUrl', 'redeem_url');
-  if (!claim || !redeemUrl) throw new Error('Idlix returned an incomplete playback session.');
+  if (!claim || !redeemUrl) throw new Error('The playback session is incomplete.');
 
   let redeemEndpoint: string;
   try {
     redeemEndpoint = new URL(redeemUrl, IDLIX_BASE_URL).toString();
   } catch {
-    throw new Error('Idlix returned an invalid playback address.');
+    throw new Error('The playback address is invalid.');
   }
   const redeemHeaders = requestHeaders();
   redeemHeaders['Content-Type'] = 'application/json';
@@ -612,11 +612,11 @@ export async function fetchIdlixPlayback(
     body: JSON.stringify({ claim }),
     signal,
   });
-  if (!redeemResponse.ok) throw new Error(`Idlix could not redeem the playback session (HTTP ${redeemResponse.status}).`);
+  if (!redeemResponse.ok) throw new Error(`Could not start the playback session (HTTP ${redeemResponse.status}).`);
   const redeemed: unknown = await redeemResponse.json();
   const apiSubtitleSources = collectSubtitleSources([playInfo, claimPayload, redeemed]);
   const iframeUrl = findStringDeep(redeemed, 'url', 'iframeUrl', 'iframe_url');
-  if (!iframeUrl) throw new Error('Idlix did not return a video source.');
+  if (!iframeUrl) throw new Error('Could not find a video source.');
   const absoluteUrl = new URL(iframeUrl, IDLIX_BASE_URL).toString();
   const sourcePageUrl = `${IDLIX_BASE_URL}/`;
 
@@ -664,7 +664,7 @@ export function searchIdlixTitles(query: string, category: IdlixCategory, signal
 
 export async function fetchIdlixDetails(slug: string, category: IdlixCategory, signal?: AbortSignal): Promise<IdlixDetails> {
   if (Platform.OS !== 'android') {
-    throw new Error('Idlix direct requests are available in the Android app. The web version needs a server proxy.');
+    throw new Error('Movie browsing is available in the Android app. The web version needs a server proxy.');
   }
   const endpoint = category === 'series' ? 'series' : 'movies';
   const response = await fetch(`${IDLIX_BASE_URL}/api/${endpoint}/${encodeURIComponent(slug)}`, {
@@ -675,10 +675,10 @@ export async function fetchIdlixDetails(slug: string, category: IdlixCategory, s
     },
     signal,
   });
-  if (!response.ok) throw new Error(`Idlix returned HTTP ${response.status}.`);
+  if (!response.ok) throw new Error(`The movie service returned HTTP ${response.status}.`);
   const payload: unknown = await response.json();
   const raw = unwrapObject(payload);
-  if (!raw) throw new Error('Idlix returned an unsupported title response.');
+  if (!raw) throw new Error('The movie service returned an unsupported title response.');
   const title = mapTitle(raw, category) ?? {
     id: slug,
     title: firstString(raw, 'title', 'name') || slug.replace(/-/g, ' '),

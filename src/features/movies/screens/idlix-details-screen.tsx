@@ -29,7 +29,7 @@ export default function IdlixDetailsScreen() {
     fetchIdlixDetails(slug, category, controller.signal).then((value) => {
       if (!controller.signal.aborted) setDetails(value);
     }).catch((reason: unknown) => {
-      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Idlix could not load this title.');
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Could not load this title.');
     }).finally(() => {
       if (!controller.signal.aborted) {
         setLoading(false);
@@ -60,7 +60,7 @@ export default function IdlixDetailsScreen() {
   };
 
   if (!slug) {
-    return <SafeAreaView edges={['top']} style={styles.screen}><View style={styles.errorState}><Text style={styles.errorTitle}>Title address missing</Text><Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backTextButton}><Text style={styles.backText}>Back to Idlix</Text></Pressable></View></SafeAreaView>;
+    return <SafeAreaView edges={['top']} style={styles.screen}><View style={styles.errorState}><Text style={styles.errorTitle}>Title address missing</Text><Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backTextButton}><Text style={styles.backText}>Back to movies</Text></Pressable></View></SafeAreaView>;
   }
 
   if (loading && !details) {
@@ -73,9 +73,9 @@ export default function IdlixDetailsScreen() {
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         <View style={styles.errorState}>
           <Text style={styles.errorTitle}>Title details unavailable</Text>
-          <Text style={styles.messageText}>{error || 'Idlix did not return details for this title.'}</Text>
+          <Text style={styles.messageText}>{error || 'Could not load details for this title.'}</Text>
           <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backTextButton}><Text style={styles.backText}>Back to Idlix</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backTextButton}><Text style={styles.backText}>Back to movies</Text></Pressable>
         </View>
       </SafeAreaView>
     );

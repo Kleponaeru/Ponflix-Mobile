@@ -127,7 +127,7 @@ const MAJORPLAY_TRACK_PROBE = `(() => {
 export default function IdlixWatchScreen() {
   const params = useLocalSearchParams<{ id?: string | string[]; title?: string | string[]; type?: string | string[]; detailSlug?: string | string[]; seriesSlug?: string | string[] }>();
   const routeId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const routeTitle = Array.isArray(params.title) ? params.title[0] : params.title || 'Idlix playback';
+  const routeTitle = Array.isArray(params.title) ? params.title[0] : params.title || 'Now playing';
   const detailSlug = Array.isArray(params.detailSlug) ? params.detailSlug[0] : params.detailSlug;
   const seriesSlug = Array.isArray(params.seriesSlug) ? params.seriesSlug[0] : params.seriesSlug;
   const type: IdlixPlaybackType = params.type === 'movie' ? 'movie' : 'episode';
@@ -174,7 +174,7 @@ export default function IdlixWatchScreen() {
     fetchIdlixPlayback(currentId, type, controller.signal, setGateWait).then((result) => {
       if (!controller.signal.aborted) setPlayback(result);
     }).catch((reason: unknown) => {
-      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Idlix could not resolve this video.');
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Could not load this video.');
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
       if (!controller.signal.aborted) setRefreshing(false);
@@ -325,14 +325,14 @@ export default function IdlixWatchScreen() {
           ) : isLoading ? (
             <View style={styles.state}>
               <ActivityIndicator color={colors.accent} size="large" />
-              <Text style={styles.stateTitle}>{gateWait ? `Waiting for Idlix: ${gateWait}s` : 'Preparing video…'}</Text>
+              <Text style={styles.stateTitle}>{gateWait ? `Preparing source: ${gateWait}s` : 'Preparing video…'}</Text>
               <Text style={styles.stateBody}>Connecting to the video source.</Text>
             </View>
           ) : (
             <View style={styles.state}>
               <View style={styles.errorIcon}><SymbolView name={{ ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }} size={22} tintColor={colors.accentSoft} /></View>
               <Text style={styles.stateTitle}>Couldn’t start playback</Text>
-              <Text style={styles.stateBody}>{visibleError || 'Idlix did not return a playable source.'}</Text>
+              <Text style={styles.stateBody}>{visibleError || 'Could not find a playable source.'}</Text>
               <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable>
             </View>
           )}
