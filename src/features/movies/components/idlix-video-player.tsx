@@ -58,13 +58,14 @@ function formatPlaybackTime(seconds: number): string {
     : `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
-export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentType, subtitleSources = [] }: {
+export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentType, subtitleSources = [], onNearEnd }: {
   uri: string;
   headers: Record<string, string>;
   title: string;
   episodeLabel?: string;
   contentType?: 'hls';
   subtitleSources?: IdlixSubtitleSource[];
+  onNearEnd?: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -90,6 +91,7 @@ export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentTyp
   const [seekPreviewTime, setSeekPreviewTime] = useState(0);
   const [progressBarX, setProgressBarX] = useState(0);
   const progressTrackRef = useRef<View>(null);
+  const nearEndPrefetched = useRef(false);
   const lastLeftTap = useRef(0);
   const lastRightTap = useRef(0);
   const seekFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,7 +130,13 @@ export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentTyp
     const subtitleSubscription = player.addListener('subtitleTrackChange', (event) => setSelectedSubtitle(event.subtitleTrack ?? null));
     const audioTracksSubscription = player.addListener('availableAudioTracksChange', (event) => updateAudioTracks(event.availableAudioTracks));
     const audioSubscription = player.addListener('audioTrackChange', (event) => setSelectedAudioTrack(event.audioTrack ?? null));
-    const timeSubscription = player.addListener('timeUpdate', (event) => setSubtitleTime(event.currentTime));
+    const timeSubscription = player.addListener('timeUpdate', (event) => {
+      setSubtitleTime(event.currentTime);
+      if (!nearEndPrefetched.current && player.duration > 0 && event.currentTime >= player.duration - 90) {
+        nearEndPrefetched.current = true;
+        onNearEnd?.();
+      }
+    });
     const subscription = player.addListener('statusChange', (event) => {
       if (event.status === 'readyToPlay') {
         setLoading(false);
@@ -153,7 +161,7 @@ export function IdlixVideoPlayer({ uri, headers, title, episodeLabel, contentTyp
       audioSubscription.remove();
       timeSubscription.remove();
     };
-  }, [player]);
+  }, [onNearEnd, player]);
 
   useEffect(() => {
     if (!selectedExternalSubtitle) {

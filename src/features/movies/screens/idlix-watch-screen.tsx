@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -13,6 +13,20 @@ import { fetchIdlixDetails, fetchIdlixPlayback, IDLIX_BASE_URL, type IdlixDetail
 import { IdlixVideoPlayer } from '@/features/movies/components/idlix-video-player';
 
 const { colors, fonts } = PonflixTheme;
+
+const PREFETCH_CACHE_TTL_MS = 30 * 60 * 1000;
+const PREFETCH_CACHE_LIMIT = 3;
+
+interface CachedPlayback {
+  playback: IdlixPlayback;
+  expiresAt: number;
+}
+
+interface PendingPlayback {
+  controller: AbortController;
+  promise: Promise<IdlixPlayback> | null;
+  waitSeconds: number;
+}
 
 const MAJORPLAY_TRACK_PROBE = `(() => {
   const post = (value) => {
@@ -142,6 +156,9 @@ export default function IdlixWatchScreen() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const majorplayWebViewRef = useRef<WebView>(null);
+  const currentIdRef = useRef(routeId);
+  const playbackCacheRef = useRef(new Map<string, CachedPlayback>());
+  const prefetchRequestRef = useRef<PendingPlayback & { id: string } | null>(null);
   const isLoading = Boolean(currentId) && loading;
   const visibleError = currentId ? error : 'This item has no playback ID.';
   const episodes = titleDetails?.episodes ?? [];
@@ -154,6 +171,49 @@ export default function IdlixWatchScreen() {
     ? [currentEpisode?.season ? `Season ${currentEpisode.season}` : null, episodeNumber ? `Episode ${episodeNumber}` : currentEpisode?.title || currentTitle].filter(Boolean).join(' · ')
     : undefined;
   const nextEpisode = currentEpisodeIndex >= 0 ? episodes[currentEpisodeIndex + 1] : undefined;
+
+  const cachePlayback = useCallback((id: string, value: IdlixPlayback) => {
+    const cache = playbackCacheRef.current;
+    cache.delete(id);
+    cache.set(id, { playback: value, expiresAt: Date.now() + PREFETCH_CACHE_TTL_MS });
+    for (const [cachedId, entry] of cache) {
+      if (entry.expiresAt <= Date.now()) cache.delete(cachedId);
+    }
+    while (cache.size > PREFETCH_CACHE_LIMIT) {
+      const oldestId = cache.keys().next().value;
+      if (!oldestId) break;
+      cache.delete(oldestId);
+    }
+  }, []);
+
+  const prefetchNextEpisode = useCallback(() => {
+    if (type !== 'episode' || !nextEpisode || nextEpisode.id === currentId) return;
+    const cached = playbackCacheRef.current.get(nextEpisode.id);
+    if (cached && cached.expiresAt > Date.now()) return;
+    if (prefetchRequestRef.current?.id === nextEpisode.id) return;
+
+    prefetchRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    const id = nextEpisode.id;
+    const pending: PendingPlayback & { id: string } = { id, controller, promise: null, waitSeconds: 0 };
+    const promise = fetchIdlixPlayback(id, 'episode', controller.signal, (seconds) => {
+      pending.waitSeconds = seconds;
+      if (currentIdRef.current === id) setGateWait(seconds);
+    }).then((result) => {
+      if (!controller.signal.aborted) cachePlayback(id, result);
+      return result;
+    }).finally(() => {
+      if (prefetchRequestRef.current?.id === id) prefetchRequestRef.current = null;
+    });
+    pending.promise = promise;
+    void promise.catch(() => undefined);
+    prefetchRequestRef.current = pending;
+  }, [cachePlayback, currentId, nextEpisode, type]);
+
+  useEffect(() => () => {
+    prefetchRequestRef.current?.controller.abort();
+    prefetchRequestRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!detailSlug) return;
@@ -170,19 +230,43 @@ export default function IdlixWatchScreen() {
 
   useEffect(() => {
     if (!currentId) return;
-    const controller = new AbortController();
-    fetchIdlixPlayback(currentId, type, controller.signal, setGateWait).then((result) => {
-      if (!controller.signal.aborted) setPlayback(result);
+    let active = true;
+    const cached = playbackCacheRef.current.get(currentId);
+    if (cached && cached.expiresAt > Date.now()) {
+      setPlayback(cached.playback);
+      setLoading(false);
+      setRefreshing(false);
+      setGateWait(0);
+      return () => { active = false; };
+    }
+
+    const pending = prefetchRequestRef.current?.id === currentId ? prefetchRequestRef.current : null;
+    if (pending) setGateWait(pending.waitSeconds);
+    const controller = pending ? null : new AbortController();
+    const request = pending?.promise ?? fetchIdlixPlayback(currentId, type, controller!.signal, setGateWait);
+    request.then((result) => {
+      if (active) {
+        cachePlayback(currentId, result);
+        setPlayback(result);
+      }
     }).catch((reason: unknown) => {
-      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Could not load this video.');
+      if (active) setError(reason instanceof Error ? reason.message : 'Could not load this video.');
     }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-      if (!controller.signal.aborted) setRefreshing(false);
+      if (active) setLoading(false);
+      if (active) setRefreshing(false);
     });
-    return () => controller.abort();
-  }, [currentId, type, reloadKey]);
+    return () => {
+      active = false;
+      controller?.abort();
+    };
+  }, [cachePlayback, currentId, reloadKey, type]);
+
+  useEffect(() => {
+    if (playback?.kind === 'embed' && nextEpisode) prefetchNextEpisode();
+  }, [nextEpisode, playback?.kind, prefetchNextEpisode]);
 
   const retry = () => {
+    if (currentId) playbackCacheRef.current.delete(currentId);
     setGateWait(0);
     setError('');
     setPlayback(null);
@@ -191,6 +275,7 @@ export default function IdlixWatchScreen() {
   };
 
   const refresh = () => {
+    if (currentId) playbackCacheRef.current.delete(currentId);
     setRefreshing(true);
     setGateWait(0);
     setError('');
@@ -201,11 +286,16 @@ export default function IdlixWatchScreen() {
 
   const selectEpisode = (episode: IdlixEpisode) => {
     if (episode.id === currentId) return;
+    if (prefetchRequestRef.current && prefetchRequestRef.current.id !== episode.id) {
+      prefetchRequestRef.current.controller.abort();
+      prefetchRequestRef.current = null;
+    }
+    currentIdRef.current = episode.id;
     setCurrentId(episode.id);
     setCurrentTitle(episode.title);
     setPlayback(null);
     setError('');
-    setGateWait(0);
+    setGateWait(prefetchRequestRef.current?.id === episode.id ? prefetchRequestRef.current.waitSeconds : 0);
     setLoading(true);
   };
 
@@ -231,7 +321,7 @@ export default function IdlixWatchScreen() {
           onRefresh={refresh}
         >
           {playback?.kind === 'embed' ? <KeepScreenAwake /> : null}
-          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={titleDetails?.title || (type === 'movie' ? currentTitle : routeTitle)} episodeLabel={fullscreenEpisodeLabel} contentType={playback.contentType} subtitleSources={playback.subtitleSources} /> : playback?.kind === 'embed' ? (
+          {playback?.kind === 'video' ? <IdlixVideoPlayer key={currentId} uri={playback.uri} headers={playback.headers} title={titleDetails?.title || (type === 'movie' ? currentTitle : routeTitle)} episodeLabel={fullscreenEpisodeLabel} contentType={playback.contentType} subtitleSources={playback.subtitleSources} onNearEnd={prefetchNextEpisode} /> : playback?.kind === 'embed' ? (
             <>
               <View style={styles.playerFrame}>
                 <WebView
@@ -244,6 +334,7 @@ export default function IdlixWatchScreen() {
                   domStorageEnabled
                   injectedJavaScript={/majorplay\.net$/i.test(new URL(playback.uri).hostname) ? MAJORPLAY_TRACK_PROBE : undefined}
                   onLoadEnd={() => {
+                    prefetchNextEpisode();
                     if (!/majorplay\.net$/i.test(new URL(playback.uri).hostname)) return;
                     setTimeout(() => {
                       majorplayWebViewRef.current?.injectJavaScript("window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'ponflix-majorplay-probe-ping-v6' })); true;");
